@@ -62,8 +62,6 @@ def sum_check(in_file, commands):
 
 def main():
     data_path = sys.argv[1]
-    if data_path[-1] != "/":
-        data_path = data_path + "/"
     commands = {"md5sum": "", "sha256sum": "", "setfattr": "", "getfattr": ""}
     #verify that the system has the proper tools installed
     for command in commands.keys():
@@ -79,7 +77,7 @@ def main():
     all_files = []
     for root, dirs, file_names in os.walk(data_path):
         for file_name in file_names:
-            file_path = root + file_name
+            file_path = root + "/" + file_name
             all_files.append(file_path)
     
     #iterate through list of files to compare or compute checksums
