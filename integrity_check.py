@@ -16,7 +16,6 @@ import os
 import locale
 import syslog
 from subprocess import Popen,PIPE
-from datetime import datetime
 
 def file_check(in_file):
     file_pass = True
@@ -86,6 +85,7 @@ def main():
         if not passes:
             continue
         sum_check(in_file, commands)
+    syslog.syslog(syslog.LOG_INFO, "Data check completed")
     
 if __name__ == "__main__":
     main()
