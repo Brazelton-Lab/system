@@ -27,35 +27,35 @@ def argument_parser():
                         type=str,
                         metavar='PROGRAM',
                         nargs='+',
-                        help="for obtaining detailed information about a "
-                        "program. The name of the program is case-sensitive.")
+                        help="obtain detailed information about a program or "
+                        "list of programs")
     parser.add_argument('-p', '--prev_vers',
                         action='store_const',
                         const='previous versions',
-                        help="list all of versions of the specified program "
-                        "that were used on the server in the past (must be "
-                        "used with the --name option)")
+                        help="list all of versions of the specified "
+                        "program(s) that were used on the server in the past "
+                        "(must be used with the --name option)")
     parser.add_argument('-f', '--full_desc',
                         action='store_const',
                         const='description',
                         help="output a more detailed description of the "
-                        "program (must be used with the --name option)")
+                        "program(s) (must be used with the --name option)")
     parser.add_argument('-c', '--commands',
                         action='store_const',
                         const='commands',
                         help="list all of the available commands provided by "
-                        "the specified program (must be used with the --name "
-                        "option)")
+                        "the specified program(s) (must be used with the "
+                        "--name option)")
     parser.add_argument('-i', '--inst_method',
                         action='store_const',
                         const='installation method',
-                        help="info on how the specified program was installed "
-                        "on the server (must be used with the --name option)")
+                        help="method used to install program(s) onto the "
+                        "the server (must be used with the --name option)")
     parser.add_argument('-d', '--depends',
                         action='store_const',
                         const='dependencies',
-                        help="list all of the program dependencies (must be "
-                        "used with the --name option)")
+                        help="list the dependencies of the program(s) (must "
+                        "be used with the --name option)")
     return parser
 
 def display_progs(data):
