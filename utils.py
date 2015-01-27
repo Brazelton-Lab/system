@@ -16,6 +16,7 @@ import sys
 import json
 import textwrap
 import argparse
+import re
 
 def argument_parser():
     parser = argparse.ArgumentParser(description="Display information about "
@@ -98,7 +99,7 @@ def prog_detail(prog, data, mods):
         output = ("{} is not installed on the server. Please verify that the "
                   "program you are searching for is installed on the server, "
                   "and/or not misspelled, by usings \"utils\" without "
-                  "command-line arguments".format(prog))
+                  "command-line arguments".format(prog.lower()))
         print_out(output)
         sys.exit(1)
 
@@ -116,7 +117,11 @@ def main():
     if programs:
         modifiers = vars(args)
         del modifiers['name']
-        for prog in programs:
+        for ci_prog in programs: # case insensitive
+            ignore_case = re.compile(ci_prog, re.IGNORECASE)
+            for cs_prog in json_data: # case sensitive
+                if ignore_case.match(cs_prog):
+                    prog = ignore_case.match(cs_prog).group()
             prog_detail(prog, json_data, modifiers)
     else: 
         display_progs(json_data)
