@@ -176,7 +176,7 @@ def prog_display(args, data):
         sys.exit(1)
 
 def prog_edit(args, data):
-    utils = "/home/cthornton/dev_projects/system/utils.txt"
+    utils = "/usr/local/etc/utils.txt"
     all_args = vars(args)
     match = test_matched(args.program, data)
     if args.remove:
@@ -243,7 +243,7 @@ def print_out(line, width=79, initial='', subsequent=''):
     print(output)
 
 def main():
-    utils = "/home/cthornton/dev_projects/system/utils.txt"
+    utils = "/usr/local/etc/utils.txt"
     with open(utils, 'rU') as infile:
         json_data = json.load(infile)
     args = argument_parser().parse_args()
