@@ -18,15 +18,22 @@ import textwrap
 import argparse
 import re
 
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write("error: {}\n\n".format(message))
+        self.print_help()
+        sys.exit(2)
+
+
 def argument_parser():
-    parser = argparse.ArgumentParser(description="Displays information about "
+    parser = MyParser(description="Displays information about "
                                      "the available bioinformatics programs "
                                      "on the server. If no arguments given "
                                      "with the list subcommand, will list all"
                                      ". Various flags can be used to modify "
                                      "the information output with the display "
                                      "subcommand")
-    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser = MyParser(add_help=False)
     parent_parser.add_argument('program', 
                                metavar='PROGRAM', 
                                help="program name")
