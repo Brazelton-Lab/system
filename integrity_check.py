@@ -16,20 +16,30 @@ import argparse
 import sys
 import os
 import locale
+import platform
 import multiprocessing
+from datetime import datetime
 from subprocess import Popen,PIPE
 
-def write_to_log(log_file, message):
-    with open(log_file, 'a')  as out_handle:
-	out_handle.write(message + '\n')
+def output_stream(message, log_file=None):
+    if log_file:
+        prog = os.path.basename(__file__)
+        date = datetime.now().strftime("%b %d %H:%M:%S")
+        hostname = platform.node().split('.')[0]
+        output = "{} {} {}: {}".format(date, hostname, prog, message)
+        with open(log_file, 'a')  as out_handle:
+	    out_handle.write('{}\n'.format(output))
+    else:
+        print(message)
 
 def file_check(in_file):
+    """check privelages and existence"""
     file_pass = True
     try:
-        with open(in_file, 'rU') as fh:
-            fh.close()
+        fh = open(in_file)
+        fh.close()
     except IOError as e:
-	write_to_log(log_file, str(e))
+	output_stream(e, log_file)
         file_pass = False
     return file_pass
 
@@ -37,12 +47,12 @@ def core_number_check(core_number):
     #Ensure that the number of cores specified is legitimate
     coreNumber = int(core_number)
     if coreNumber < 1:
-	write_to_log(log_file, 'Minimum of one core required.')
+	output_stream('Minimum of one core required.')
 	sys.exit(1)
     maxCoreNumber = multiprocessing.cpu_count()
     if coreNumber > maxCoreNumber:
-	write_to_log(log_file, 'Cannot exceed maximum number of cores: '\
-	    + maxCoreNumber)
+	output_stream('Cannot exceed maximum number of cores: {}'
+                      .format(maxCoreNumber))
 	sys.exit(1)
     return coreNumber
 
@@ -51,41 +61,41 @@ def worker(file_list, commands):
 	sum_check(file, commands)
 
 def sum_check(in_file, commands):
-    '''
+    """
     Check file for checksums. If values for the md5 and sha256 algorithms do 
     not already exist, compute them and store them with the file
-    '''
+    """
     algorithms = ['md5sum', 'sha256sum']
     for algorithm in algorithms:
-        xattr_name = 'user.checksum.' + algorithm.replace('sum', '')
-        compute_sum, compute_err= Popen([commands[algorithm], in_file], \
+        xattr_name = 'user.checksum.{}'.format(algorithm.replace('sum', ''))
+        value_computed, compute_err = Popen([commands[algorithm], in_file], \
             stdout=PIPE, stderr=PIPE).communicate()
-        value_computed = compute_sum.decode(locale.getdefaultlocale()[1]).\
+        value_computed = value_computed.decode(locale.getdefaultlocale()[1]).\
             split(' ')[0]
-        get_value, get_err = Popen([commands['getfattr'], '-n', \
+        value_stored, get_err = Popen([commands['getfattr'], '-n', \
             xattr_name, '--only-values', '--absolute-names', in_file], \
             stdout=PIPE, stderr=PIPE).communicate()
-        value_stored = get_value.decode(locale.getdefaultlocale()[1])
+        value_stored = value_stored.decode(locale.getdefaultlocale()[1])
         if not value_stored: #log and store if checksum doesn't already exist
             store_err = Popen([commands['setfattr'], '-n', xattr_name, '-v', \
                 value_computed, in_file], stderr=PIPE).communicate()[1]
             if store_err:
-		write_to_log(log_file, store_err.decode(locale.\
-		    getdefaultlocale()[1]))
+                output = store_err.decode(locale.getdefaultlocale()[1])
+		output_stream(output, log_file)
         elif value_computed != value_stored: #compare the values
-	    log_message = os.path.basename(in_file) + ': ' + xattr_name + \
-		': ' + 'stored value does not match calculated value'
-	    write_to_log(log_file, log_message)
+	    output = "{}: {}: checksums do not match".format(os.path.basename(in_file), xattr_name)
+	    output_stream(output, log_file)
 
 def main():
-    write_to_log(log_file, 'Data check started')
+    output_stream("Data check started", log_file)
     commands = {'md5sum': '', 'sha256sum': '', 'setfattr': '', 'getfattr': ''}
     #verify that the system has the proper tools installed
     for command in commands.keys():
         proc, proc_err = Popen(['which', command], stdout=PIPE, stderr=PIPE).\
             communicate()
         if proc_err:
-	    write_to_log(log_file, 'Cannot find ' + command + ' in system path/')
+            output = "Cannot find {} in system path".format(command)
+	    output_stream(output, log_file)
             sys.exit(1)
         commands[command] = proc.decode(locale.getdefaultlocale()[1]).strip()
 
@@ -106,8 +116,8 @@ def main():
 		if file_status:
 		    all_files.append(file_path)
 		    total_file_size += os.path.getsize(file_path)
-    write_to_log(log_file, 'Checking ' + str(total_file_size)\
-	+ ' bytes of data with ' + str(args.cores) + ' core(s)')
+    output_stream('Checking {} bytes of data with {} core(s)'
+                  .format(str(total_file_size), str(args.cores)), log_file)
 
     #divide files into lists of roughly equal size for individual cores to process
     average_file_size = float(total_file_size/args.cores)
@@ -137,25 +147,25 @@ def main():
 	    p.start()
     for p in jobs: #wait for each process to finish before exiting the program
 	p.join()
-    write_to_log(log_file, 'Data check completed')
+    output_stream('Data check completed', log_file)
     
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description = 'Calcualtes checksum of each'\
-					+ 'file in the given directory and'\
-					+ 'compares it to the existing value')
-    parser.add_argument('directory',\
-			type = str,\
-			help = 'directory containing files to check')
-    parser.add_argument('log_file',\
-			type = str,\
-			help = 'log file to write output to')
-    parser.add_argument('cores',\
-			type = core_number_check,\
-			default = 1,\
-			nargs = '?',\
-			help = 'number of cores to utilize')
+    parser = argparse.ArgumentParser(description = "Calcualtes checksum of "
+                                     "each file in a given directory and "
+                                     "compares it to the existing value")
+    parser.add_argument('directory', metavar='DIR',
+			type = str,
+			help = "directory containing files to check")
+    parser.add_argument('-l', '--log', metavar='LOG',
+			type = str,
+			help = "output to log file")
+    parser.add_argument('-c', '--cores',
+			type = core_number_check,
+			default = 1,
+			nargs = '?',
+			help = "number of cores to utilize")
     args = parser.parse_args()
-    log_file = args.log_file
+    log_file = args.log
     main()
 
 sys.exit(0)
