@@ -108,7 +108,7 @@ def argument_parser():
 
 def test_matched(ci_prog, data):
     match = False
-    if ci_prog.lower() == data,lower():
+    if ci_prog.lower() == data.lower():
         match = True
     return match
 
