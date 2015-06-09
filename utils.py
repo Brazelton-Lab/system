@@ -107,9 +107,8 @@ def argument_parser():
     return parser
 
 def test_matched(ci_prog, data):
-    ignore_case = re.compile(ci_prog, re.IGNORECASE)
-    match = None
-    if ci.prog.lower() == data.lower():
+    match = False
+    if ci_prog.lower() == data,lower():
         match = True
     return match
 
