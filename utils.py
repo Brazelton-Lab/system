@@ -18,22 +18,15 @@ import textwrap
 import argparse
 import re
 
-class MyParser(argparse.ArgumentParser):
-    def error(self, message):
-        sys.stderr.write("error: {}\n\n".format(message))
-        self.print_help()
-        sys.exit(2)
-
-
 def argument_parser():
-    parser = MyParser(description="Displays information about "
+    parser = argparse.ArgumentParser(description="Displays information about "
                                      "the available bioinformatics programs "
                                      "on the server. If no arguments given "
                                      "with the list subcommand, will list all"
                                      ". Various flags can be used to modify "
                                      "the information output with the display "
                                      "subcommand")
-    parent_parser = MyParser(add_help=False)
+    parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('program', 
                                metavar='PROGRAM', 
                                help="program name")
@@ -116,10 +109,8 @@ def argument_parser():
 def test_matched(ci_prog, data):
     ignore_case = re.compile(ci_prog, re.IGNORECASE)
     match = None
-    for cs_prog in data: # case sensitive
-        if ignore_case.search(cs_prog):
-            match = cs_prog
-            break
+    if ci.prog.lower() == data.lower():
+        match = True
     return match
 
 def display_info(first, second):
@@ -183,7 +174,7 @@ def prog_display(args, data):
         sys.exit(1)
 
 def prog_edit(args, data):
-    utils = "/usr/local/etc/utils.txt"
+    utils = "/home/cthornton/dev_projects/system/utils.txt"
     all_args = vars(args)
     match = test_matched(args.program, data)
     if args.remove:
@@ -250,7 +241,7 @@ def print_out(line, width=79, initial='', subsequent=''):
     print(output)
 
 def main():
-    utils = "/usr/local/etc/utils.txt"
+    utils = "/home/cthornton/dev_projects/system/utils.txt"
     with open(utils, 'rU') as infile:
         json_data = json.load(infile)
     args = argument_parser().parse_args()
