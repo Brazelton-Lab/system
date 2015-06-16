@@ -242,7 +242,7 @@ def print_out(line, width=79, initial='', subsequent=''):
     print(output)
 
 def main():
-    utils = "/home/cthornton/dev_projects/system/utils.txt"
+    utils = "/usr/local/etc/utils.txt"
     with open(utils, 'rU') as infile:
         json_data = json.load(infile)
     args = argument_parser().parse_args()
