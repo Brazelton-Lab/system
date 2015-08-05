@@ -1,72 +1,110 @@
 #!/bin/bash
 #Backup data to the Brazelton Lab file server
 
-# store command line arguments
-args=("$@")
-
-# utilities
-ssh=$(which ssh)
-
 # functions
-check_process() {
-  if [ -z "$1" ]; then
-    logger "$0: backup failed: $2";
-    exit 1
-  fi
+write_log() {
+    date=$(date +"%b  %-d %k:%M:%S")
+    host=$(hostname -s)
+    echo "$date $host $script: $1" >> $log_file;
 }
 
-remove_failed() {
-  if [ -n "$1" ]; then
-    logger "$0: backup failed: $1"
-    ssh -q -p $PORT $HOST rm -Rf $BACKUP
-    /bin/umount $SNAP_DIR
-    /sbin/lvremove -f $SNAP_PATH
-    exit 1
-  fi
-}
+show_help() {
+cat << EOF
+Usage: ${0##*/} [-h] [-r HOST] [-l LOG] [-p PORT] [-e FILES] source destination
+Brazelton Lab backup script
 
-# show usage if help argument given
-for arg in ${args[@]}; do
-  if [ $arg == '-h' ] || [ $arg == '--help' ]; then
-    printf "Usage: $0 [device_path] [backup_path]\n"
-    exit 1
-  fi
-done
+positional arguments:
+  source          directory to be backed up
+  destination     destination on remote machine
+
+optional arguments:
+  -h              display this help message and exit
+  -r HOST         account on remote host
+  -l LOG          log file
+  -p PORT         ssh port
+  -e FILES        exclude files matching pattern
+EOF
+}
 
 # variables
-SRC=${args[0]}
-DEST=${args[1]}
-HOST='root@baas-becking.biology.utah.edu'
-PORT=53213
-LOG='/var/log/rsync'
-SNAP_DIR='/mnt/snapshot'
-SNAP_NAME='lv_snap'
-BACKUP=$DEST/$(date -I)
+ssh=$(which ssh);
+basename=$(which basename);
+script=$($basename $0)
+remote_host='root@baas-becking.biology.utah.edu';
+port=53213;
+log_file='/var/log/rsync';
+exclude='lost+found';
 
-LINK=$($ssh -q -p $PORT $HOST find $DEST -maxdepth 1 -type d | sort -n | \
-  tail -1)
-FAIL_REASON="unable to obtain backup link"
-check_process $LINK $FAIL_REASON
+# parse command line arguments
+OPTIND=1;
+while getopts "h?r:p:l:e:" opt; do
+    case "$opt" in
+        h)
+            show_help;
+            exit 0
+            ;;
+        r)  remote_host=$OPTARG
+            ;;
+        p)  port=$OPTARG
+            ;;
+        l)  log_file=$OPTARG
+            ;;
+        e)  exclude=$OPTARG
+            ;;
+        ?)
+            show_help;
+            echo "Unknown option";
+            exit 0
+    esac
+done
 
-IFS='- ' read -a array <<< $SRC; SNAP_PATH=${array[0]}'-'$SNAP_NAME
-if [ ! -d $SNAP_DIR ]; then
-  $(which mkdir) $SNAP_DIR;
+if [ $(( $# - $OPTIND )) -lt 1 ]; then
+    show_help;
+    exit 1;
 fi
 
-snap=$(/sbin/lvcreate --size 20GiB --snapshot --name $SNAP_NAME $SRC)
-FAIL_REASON="could not create snapshot of $SRC"
-check_process $snap $FAIL_REASON
+source_dir="${@:$OPTIND:1}";
+dest_dir="${@:$OPTIND+1:1}";
 
-/bin/mount $SNAP_PATH $SNAP_DIR
+# verify that user input is valid
+if [ ! -e "$source_dir" ]; then
+    write_log "source $source_dir is not a valid file or directory";
+    exit 1;
+else
+    write_log "starting backup of $source_dir";
+fi
 
-sync=$(/usr/bin/rsync -e "ssh -q -p $PORT" -azA --log-file=$LOG --exclude="lost+found" \
-	--delete --link-dest=$LINK $SNAP_DIR/ $HOST:$BACKUP 2>&1 >/dev/null)
-remove_failed $sync
+# obtain destination link
+link=$($ssh -q -p $port $remote_host find $dest_dir -maxdepth 1 -type d | sort -n | tail -1);
+if [ -z "$link" ]; then
+    write_log "backup failed: unable to obtain a destination link";
+    exit 1;
+else
+    write_log "found destination link: $link";
+fi
 
-mod_mtime=$($ssh -q -p $PORT $HOST touch $BACKUP 2>&1 >/dev/null)
-remove_failed $mod_mtime
+destination="$dest_dir/$(date -I)";
 
-/bin/umount $SNAP_DIR
-/sbin/lvremove -f $SNAP_PATH
+# verify that destination does not already exist on the remote server
+if [ $destination == $link ]; then
+    write_log "destination directory $destination already exists on remote machine";
+    exit 1;
+fi
 
-exit 0
+# backup data
+write_log "using rsync to backup data";
+sync_err=$(/usr/bin/rsync -e "ssh -q -p $port" -azAO --no-o --no-g --log-file=$log_file --exclude=$exclude --delete --link-dest=$link $source_dir $remote_host:$destination 2>&1 >/dev/null);
+if [ -n "$sync_err" ]; then
+    write_log "backup failed: $1";
+    rmdir_err=$($ssh -q -p $port $remote_host rm -Rf $destination 2>&1 > /dev/null);
+    if [ -n "$rmdir_err" ]; then
+        write_log "unable to remove $destination: $rmdir_err";
+    else
+        write_log "destination directory $destination successfully removed";
+    fi
+    exit 1;
+fi
+
+write_log "backup successful";
+
+exit 0;
