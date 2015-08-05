@@ -3,7 +3,7 @@
 
 # functions
 write_log() {
-    date=$(date +"%b  %-d %k:%M:%S")
+    date=$(date +"%b %-d %k:%M:%S")
     host=$(hostname -s)
     echo "$date $host $script: $1" >> $log_file;
 }
