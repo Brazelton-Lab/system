@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+
 """
 Parses a JSON-formatted file containing information on the available 
 programs on the server and displays it as human-readable text. The user can 
@@ -10,8 +11,8 @@ includes functionality for editing the database.
 
 from __future__ import print_function
 
-__author__ = "Christopher Thornton"
-__date__ = "2015-01-23"
+__author__ = "Christopher Thornton, Alex Hyer"
+__date__ = "2015-11-03"
 
 import sys
 import json
@@ -62,6 +63,11 @@ def argument_parser():
         metavar='COMMAND [,COMMAND,...]',
         type=parse_multiple_args,
         help="comma-separated list of commands provided by the program")
+    edit_parser.add_argument('-t, --categories',
+        dest='categories',
+        metavar='CATEGORY [,CATEGORY,...]',
+        type=parse_multiple_args,
+        help="comma-separated list of categories program is in")
     edit_parser.add_argument('-i', '--installation', metavar='METHOD',
         dest="installation method",
         help="method used to install the program")
@@ -95,6 +101,10 @@ def argument_parser():
         action='store_const',
         const='commands',
         help="list available commands provided by program")
+    flag_group.add_argument('-t', '--categories',
+        action='store_const',
+        const='categories',
+        help="list of categories the program fits in")
     flag_group.add_argument('-i', '--installation',
         action='store_const',
         const='installation method',
@@ -139,8 +149,17 @@ def display_info(first, second):
 
 def relevant_values(all_args, name, data):
     given_args = []
+    approved_values = [
+        'previous version',
+        'description',
+        'version',
+        'commands',
+        'installation method',
+        'dependencies',
+        'categories'
+        ]
     for arg in all_args:
-        if arg in data[name] and all_args[arg]:
+        if arg in approved_values and all_args[arg]:
             given_args.append(arg)
     return given_args
 
@@ -156,6 +175,7 @@ def prog_list(args, data):
 
 def prog_display(args, data):
     all_args = vars(args)
+    print(all_args)
     program = test_matched(args.program, data)
     if program:
         version = data[program]["version"]
@@ -228,7 +248,8 @@ def prog_edit(args, data):
         if not match:
             data[args.program] = {"description": "", "version": "", 
                                   "previous versions": [], "commands": [], 
-                                  "installation method": "", "dependencies": []
+                                  "installation method": "", "dependencies": [],
+                                  "categories": []
                                  }
             categories = relevant_values(all_args, args.program, data)
             for category in categories:
