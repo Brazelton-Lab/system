@@ -150,7 +150,7 @@ def display_info(first, second):
 def relevant_values(all_args, name, data):
     given_args = []
     approved_values = [
-        'previous version',
+        'previous versions',
         'description',
         'version',
         'commands',
@@ -175,7 +175,6 @@ def prog_list(args, data):
 
 def prog_display(args, data):
     all_args = vars(args)
-    print(all_args)
     program = test_matched(args.program, data)
     if program:
         version = data[program]["version"]
