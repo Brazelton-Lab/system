@@ -40,6 +40,13 @@ def argument_parser():
     list_parser = subparsers.add_parser('list',
         parents=[db_parser],
         help="list all available programs")
+    category_mode = list_parser.add_argument_group('category viewers')
+    exclusive_list = category_mode.add_mutually_exclusive_group()
+    exclusive_list.add_argument('-l', '--list_categories',
+        action='store_true',
+        help='list all program categories')
+    exclusive_list.add_argument('-c', '--category',
+        help='list all prgrams in given category')
     list_parser.set_defaults(func=prog_list)
     # edit-specific arguments
     edit_parser = subparsers.add_parser('edit',
@@ -164,14 +171,34 @@ def relevant_values(all_args, name, data):
     return given_args
 
 def prog_list(args, data):
-    for program in sorted(data):
-        version = data[program]["version"]
-        if version:
-            col_one = "{}(v.{}): ".format(program, version)
-        else:
-            col_one = program
-        col_two = data[program]["description"]
-        display_info(col_one, col_two)
+    if args.list_categories:
+        categories = []
+        for program in sorted(data):
+            try:
+                prog_cat = data[program]["categories"]
+                for cat in prog_cat:
+                    if not cat in categories:
+                        categories.append(cat)
+            except KeyError:
+                pass
+        print('\n'.join(categories))
+    elif args.category:
+        for program in sorted(data):
+            try:
+                prog_cat = data[program]["categories"]
+                if args.category in prog_cat:
+                    print(program)
+            except KeyError:
+                pass
+    else:            
+        for program in sorted(data):
+            version = data[program]["version"]
+            if version:
+                col_one = "{}(v.{}): ".format(program, version)
+            else:
+                col_one = program
+            col_two = data[program]["description"]
+            display_info(col_one, col_two)
 
 def prog_display(args, data):
     all_args = vars(args)
