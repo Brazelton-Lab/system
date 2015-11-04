@@ -46,6 +46,7 @@ def argument_parser():
         action='store_true',
         help='list all program categories')
     exclusive_list.add_argument('-c', '--category',
+        type=parse_multiple_args,
         help='list all prgrams in given category')
     list_parser.set_defaults(func=prog_list)
     # edit-specific arguments
@@ -202,13 +203,23 @@ def prog_list(args, data):
                 pass
         print('\n'.join(categories))
     elif args.category:
-        for program in sorted(data):
-            try:
-                prog_cat = data[program]["categories"]
-                if args.category in prog_cat:
-                    print(program)
-            except KeyError:
-                pass
+        for category in args.category:
+            print()
+            print( '-' * len(category))
+            print('{0}'.format(category))
+            print('-' * len(category), '\n')
+            exists = False
+            for program in sorted(data):
+                try:
+                    prog_cat = data[program]["categories"]
+                    if category in prog_cat:
+                        print(program)
+                        exists = True
+                except KeyError:
+                    pass
+            if not exists:
+                print('No such category: {0}'.format(category))
+                print('Type use --list_categories to view possible categories')
     else:            
         for program in sorted(data):
             version = data[program]["version"]
