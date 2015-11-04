@@ -137,12 +137,31 @@ def io_check(infile, mode='rU'):
         fh.close()
     return infile
 
-def test_matched(ci_prog, data):
+def autocomplete(user_prog, data):
     match = False
+    matches = []
     for program in data:
-        if ci_prog.lower() == program.lower():
+        user_prog_lower = user_prog.lower()
+        data_prog_lower = program.lower()
+        if user_prog_lower == data_prog_lower:
             match = program
             break
+        elif data_prog_lower.startswith(user_prog_lower):
+            matches.append(program)
+    if not match and len(matches) == 1:
+        print_out('Assuming "{0}" meant "{1}"'.format(user_prog, matches[0]))
+        print()
+        match = matches[0]
+    elif not match and len(matches) > 1:
+        print('Could not unambiguously determine what "{0}" means.'
+              .format(user_prog))
+        print('Did you mean one of the following:\n{0}'
+              .format('\n'.join(matches)))
+        sys.exit(0)
+    elif not match and len(matches) == 0:
+        print('"{0}" did not match anything in the database.'
+              .format(user_prog))
+        sys.exit(0)
     return match
 
 def display_info(first, second):
@@ -202,7 +221,7 @@ def prog_list(args, data):
 
 def prog_display(args, data):
     all_args = vars(args)
-    program = test_matched(args.program, data)
+    program = autocomplete(args.program, data)
     if program:
         version = data[program]["version"]
         if version:
