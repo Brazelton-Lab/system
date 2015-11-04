@@ -266,7 +266,7 @@ def prog_display(args, data):
 
 def prog_edit(args, data):
     all_args = vars(args)
-    match = test_matched(args.program, data)
+    match = autocomplete(args.program, data)
     if args.remove:
         if match:
             answer = raw_input("Delete \"{}\" [y, n]? ".format(match))
