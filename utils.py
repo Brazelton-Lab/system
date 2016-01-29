@@ -97,7 +97,7 @@ def argument_parser():
         help="remove existing entry from database")
     edit_parser.set_defaults(func=prog_edit)
     # display-specific arguments
-    display_parser = subparsers.add_parser('display',
+    display_parser = subparsers.add_parser('show',
         parents=[parent_parser, db_parser],
         help="obtain detailed information about a program")
     flag_group = display_parser.add_argument_group('flags')
