@@ -60,7 +60,7 @@ SNAPSIZE='200GiB';
 
 # parse command line arguments
 OPTIND=1;
-while getopts "h?r:p:l:e:v:g:s:" opt; do
+while getopts "h?d:r:p:l:e:v:g:s:" opt; do
     case "$opt" in
         h)
             show_help;
