@@ -31,7 +31,7 @@ def argument_parser():
         help="program name")
     db_parser = argparse.ArgumentParser(add_help=False)
     db_parser.add_argument('-b', '--database', metavar="DB",
-        default="/usr/local/etc/utils.txt",
+        default="/usr/local/etc/utils.json",
         type=io_check,
         help="provide a custom JSON-formatted database file")
     subparsers = parser.add_subparsers(title="subcommands", 
