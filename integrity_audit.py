@@ -165,6 +165,7 @@ def main(args):
                 if part[0] == '.':
                     continue
 
+        # Analyze each file in the given directory
         file_classes = []
         for file_name in file_names:
 
@@ -189,6 +190,7 @@ def main(args):
 
     # In-house tests show that, predictably, Linux *sum commands are much
     # faster than Python's built-in hashlib. Use *sum commands when available.
+    # The presence or absence of a sum command greatly influences program flow.
     sum_cmd = which(args.algo + 'sum')
 
 
