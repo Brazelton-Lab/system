@@ -18,7 +18,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a3'
+__version__ = '0.0.1a4'
 
 
 class Directory:
@@ -50,7 +50,7 @@ class Directory:
 
 
 class File:
-    """A simple class to store file locations, checksums, mtimes, and sizes
+    """A simple class to store file locations, checksums, and sizes
 
     While the data stored in this class is accessible, and often initially
     obtained via the python os library, storing these variables in memory
@@ -62,8 +62,6 @@ class File:
 
         checksum (str): checksum of file
 
-        mtime (int): time file last modified in seconds since epoch
-
         size (int): size of file in bytes
     """
 
@@ -72,8 +70,31 @@ class File:
 
         self.path = path
         self.checksum = None
-        self.mtime = None
         self.size = None
+
+
+def sum_cmd_calculator(queue, sum_cmd):
+    """
+
+    Args:
+         queue (Queue): multiprocessing Queue class containing Directory
+                        classes to process
+
+         sum_cmd (str): path to executable *nix checksum command
+    """
+
+    pass
+
+
+def sum_py_calculator(queue):
+    """
+
+    Args:
+         queue (Queue): multiprocessing Queue class containing File classes to
+                        process
+    """
+
+    pass
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -148,6 +169,30 @@ def main(args):
         args (ArgumentParser): args to control program options
     """
 
+    # In-house tests show that, predictably, Linux *sum commands are much
+    # faster than Python's built-in hashlib. Use *sum commands when available.
+    # The presence or absence of a sum command greatly influences program flow.
+    sum_cmd = which(args.algo + 'sum')
+    use_sum = True if sum_cmd is not None else False
+
+    # Variables for use with multiprocessing module
+    queue = Queue()
+    processes = []
+
+    # Initialize daemons to process checksums
+    if use_sum:
+        for i in range(args.threads):
+            processes.append(Process(target=sum_cmd_calculator,
+                                     args=(queue, sum_cmd,)))
+            processes[i].daemonize = True
+            processes[i].start()
+    else:
+        for i in range(args.threads):
+            processes.append(Process(target=sum_py_calculator,
+                                     args=(queue,)))
+            processes[i].daemonize = True
+            processes[i].start()
+
     # Obtain directory structure and data
     dirs = []
     args.recursive = True if args.max_depth > 0 else False  # -m implies -r
@@ -177,30 +222,26 @@ def main(args):
             # Initiate File class and store attributes
             file_path = os.path.join(norm_root, file_name)
             file_class = File(file_path)
-            file_class.mtime = os.path.getmtime(file_path)
             file_class.size = os.path.getsize(file_path)
             file_classes.append(File(file_path))
+
+            # Send file to queue for processing
+            if not use_sum:
+                queue.put(file_classes)
 
         # Initialize directory and pass File handles
         directory = Directory(norm_root, file_classes)
         dirs.append(directory)
 
+        # Send directory to queue for processing
+        if use_sum:
+            queue.put(directory)
+
         # Break loop on first iteration if not recursive
         if args.recursive is False:
             break
 
-    # In-house tests show that, predictably, Linux *sum commands are much
-    # faster than Python's built-in hashlib. Use *sum commands when available.
-    # The presence or absence of a sum command greatly influences program flow.
-    sum_cmd = which(args.algo + 'sum')
-    use_sum = True if sum_cmd is not None else False
-
-    queue = Queue()
-
-    if use_sum:
-        pass
-    else:
-        pass
+    # TODO: Add writing checksum files to directory
 
 
 if __name__ == '__main__':
