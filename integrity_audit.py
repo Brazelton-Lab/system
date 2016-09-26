@@ -8,6 +8,7 @@ from __future__ import print_function
 """
 
 import argparse
+import hashlib
 from multiprocessing import Process, Queue
 import os
 import sys
@@ -92,6 +93,8 @@ def sum_py_calculator(queue):
     Args:
          queue (Queue): multiprocessing Queue class containing File classes to
                         process
+
+         hasher (function): function from hashlib to compute file checksums
     """
 
     pass
@@ -169,6 +172,16 @@ def main(args):
         args (ArgumentParser): args to control program options
     """
 
+    # Dictionary relating hashing algorithm arg to function
+    hash_function = {
+        'md5': hashlib.md5,
+        'sha1': hashlib.sha1,
+        'sha224': hashlib.sha224,
+        'sha256': hashlib.sha256,
+        'sha384': hashlib.sha384,
+        'sha512': hashlib.sha512
+    }
+
     # In-house tests show that, predictably, Linux *sum commands are much
     # faster than Python's built-in hashlib. Use *sum commands when available.
     # The presence or absence of a sum command greatly influences program flow.
@@ -187,9 +200,10 @@ def main(args):
             processes[i].daemonize = True
             processes[i].start()
     else:
+        hasher = hash_function[args.algorithm]
         for i in range(args.threads):
             processes.append(Process(target=sum_py_calculator,
-                                     args=(queue,)))
+                                     args=(queue, hasher,)))
             processes[i].daemonize = True
             processes[i].start()
 

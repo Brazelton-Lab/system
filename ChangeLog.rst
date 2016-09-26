@@ -4,6 +4,27 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Subprocess Boilerplate to integrity_audit. [TheOneHyer]
+
+  integrity_audity now has some boilerplate code
+  for initializing two different daemons based on
+  presence/absence of *nix sum command.
+
+- Added Some Framework to integriy_audit. [TheOneHyer]
+
+  Added some multiprocessing boilerplate
+  to integrity_audit.
+
+- Added integrity_audit and updated utils.json. [TheOneHyer]
+
+  Utils.json is a more modern version from a
+  pervious server and added integrity_audit startup.
+
+- Added Ability to get File Structure Info. [TheOneHyer]
+
+  Added Classes and main function loop to obtain
+  info on directory structure.
+
 - Added integrity_audit.py and ChangeLog.rst. [TheOneHyer]
 
   Added ChangeLog.rst for use by gitchangelog
