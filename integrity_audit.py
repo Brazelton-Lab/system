@@ -8,6 +8,7 @@ from __future__ import print_function
 """
 
 import argparse
+from multiprocessing import Process, Queue
 import os
 import sys
 
@@ -17,7 +18,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a2'
+__version__ = '0.0.1a3'
 
 
 class Directory:
@@ -192,6 +193,14 @@ def main(args):
     # faster than Python's built-in hashlib. Use *sum commands when available.
     # The presence or absence of a sum command greatly influences program flow.
     sum_cmd = which(args.algo + 'sum')
+    use_sum = True if sum_cmd is not None else False
+
+    queue = Queue()
+
+    if use_sum:
+        pass
+    else:
+        pass
 
 
 if __name__ == '__main__':
