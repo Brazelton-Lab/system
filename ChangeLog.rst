@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added hashlib to integrity_audit. [TheOneHyer]
+
+  integrity_audit now links to Python
+  hashlib functions for itnernal use.
+
 - Added Subprocess Boilerplate to integrity_audit. [TheOneHyer]
 
   integrity_audity now has some boilerplate code

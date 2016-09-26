@@ -11,6 +11,7 @@ import argparse
 import hashlib
 from multiprocessing import Process, Queue
 import os
+from subprocess import check_output
 import sys
 
 __author__ = 'Alex Hyer'
@@ -75,7 +76,7 @@ class File:
 
 
 def sum_cmd_calculator(queue, sum_cmd):
-    """
+    """Calculate hexadecimal checksum of file using sum_cmd
 
     Args:
          queue (Queue): multiprocessing Queue class containing Directory
@@ -84,11 +85,21 @@ def sum_cmd_calculator(queue, sum_cmd):
          sum_cmd (str): path to executable *nix checksum command
     """
 
-    pass
+    # Loop until queue contains kill message
+    while True:
+        directory = queue.get()
+
+        # Break on kill message
+        if directory == 'DONE':
+            break
+
+        # Process file contents using *nix command
+        for f in directory.files:
+            f.checksum = check_output(sum_cmd, f.path).split(' ')[0]
 
 
-def sum_py_calculator(queue):
-    """
+def sum_py_calculator(queue, hasher):
+    """Calculate hexadecimal checksum of file from queue using given hasher
 
     Args:
          queue (Queue): multiprocessing Queue class containing File classes to
@@ -97,7 +108,27 @@ def sum_py_calculator(queue):
          hasher (function): function from hashlib to compute file checksums
     """
 
-    pass
+    # Loop until queue contains kill message
+    while True:
+        f = queue.get()
+
+        # Break on kill message
+        if f == 'DONE':
+            break
+
+        # Process file contents in memory efficient manner
+        with open(f.path, 'rb') as file_handle:
+            hexsum = hasher()
+            while True:
+                data = file_handle.read(hasher.block_size)
+
+                # Break on empty string
+                if not data:
+                    break
+
+                hexsum.update(data)
+
+            f.checksum = hexsum.hexdigest()
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -207,7 +238,7 @@ def main(args):
             processes[i].daemonize = True
             processes[i].start()
 
-    # Obtain directory structure and data
+    # Obtain directory structure and data, populate queue for above daemons
     dirs = []
     args.recursive = True if args.max_depth > 0 else False  # -m implies -r
     for root, dir_names, file_names in os.walk(args.directory):
@@ -254,6 +285,14 @@ def main(args):
         # Break loop on first iteration if not recursive
         if args.recursive is False:
             break
+
+    # Send a kill message to each thread via queue
+    for i in processes:
+        queue.put('DONE')
+
+    # Wait for each process to complete before continuing
+    for process in processes:
+        process.join()
 
     # TODO: Add writing checksum files to directory
 
