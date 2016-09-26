@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import argparse
 import hashlib
+import logging
 from multiprocessing import Process, Queue
 import os
 from subprocess import check_output
@@ -20,7 +21,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a4'
+__version__ = '0.0.1a6'
 
 
 class Directory:
@@ -52,7 +53,7 @@ class Directory:
 
 
 class File:
-    """A simple class to store file locations, checksums, and sizes
+    """A simple class to store file locations, checksums, and mtimes
 
     While the data stored in this class is accessible, and often initially
     obtained via the python os library, storing these variables in memory
@@ -64,7 +65,7 @@ class File:
 
         checksum (str): checksum of file
 
-        size (int): size of file in bytes
+        mtime (int): time of last file modification in seconds since epoch
     """
 
     def __init__(self, path):
@@ -72,7 +73,7 @@ class File:
 
         self.path = path
         self.checksum = None
-        self.size = None
+        self.mtime = None
 
 
 def sum_cmd_calculator(queue, sum_cmd):
@@ -203,8 +204,30 @@ def main(args):
         args (ArgumentParser): args to control program options
     """
 
-    # Dictionary relating hashing algorithm arg to function
-    hash_function = {
+    # Setup logging
+    log_level = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
+
+    logger = logging.getLogger('integrity_audit')
+    logger.setLevel(log_level[args.log_level])
+    if args.log == 'syslog':
+        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        formatter = logging.Formatter(
+            '%(name)s - %(levelname)s: %(message)s')
+    else:
+        handler = logging.FileHandler(filename=args.log)
+        formatter = logging.Formatter(
+            '%(asctime)s %(name)s - %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    # Relate hashing algorithm arg to function for downstream use
+    hash_functions = {
         'md5': hashlib.md5,
         'sha1': hashlib.sha1,
         'sha224': hashlib.sha224,
@@ -231,7 +254,7 @@ def main(args):
             processes[i].daemonize = True
             processes[i].start()
     else:
-        hasher = hash_function[args.algorithm]
+        hasher = hash_functions[args.algorithm]
         for i in range(args.threads):
             processes.append(Process(target=sum_py_calculator,
                                      args=(queue, hasher,)))
@@ -264,10 +287,15 @@ def main(args):
             if args.hidden is False and file_name[0] == '.':
                 continue
 
+            # Skip checksum files
+            for key in hash_functions.keys():
+                if file_name.endswith(key + 'sum'):
+                    continue
+
             # Initiate File class and store attributes
             file_path = os.path.join(norm_root, file_name)
             file_class = File(file_path)
-            file_class.size = os.path.getsize(file_path)
+            file_class.mtime = os.path.getmtime(file_path)
             file_classes.append(File(file_path))
 
             # Send file to queue for processing
@@ -294,6 +322,7 @@ def main(args):
     for process in processes:
         process.join()
 
+    # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
 
 
@@ -304,9 +333,6 @@ if __name__ == '__main__':
     parser.add_argument('directory', metavar='dir',
                         type=str,
                         help='directory containing files to check')
-    parser.add_argument('-l', '--log',
-                        type=argparse.FileType('a'),
-                        help='log file to write output [Default: syslog]')
     parser.add_argument('-a', '--algorithm',
                         type=str,
                         default='sha512',
@@ -317,6 +343,10 @@ if __name__ == '__main__':
                                  'sha384',
                                  'sha512'],
                         help='algorithm used to perform checksums')
+    parser.add_argument('-l', '--log',
+                        type=str,
+                        default='syslog',
+                        help='log file to write output')
     parser.add_argument('-d', '--hidden',
                         action='store_true',
                         help='check files in hidden directories and hidden '
@@ -329,6 +359,17 @@ if __name__ == '__main__':
                         default=-1,
                         help='max number of subdirectory levels to check, '
                              'implies "-r"')
+    parser.add_argument('-o', '--log_level',
+                        type=str,
+                        default='info',
+                        choices=[
+                            'debug',
+                            'info',
+                            'warning',
+                            'error',
+                            'critical'
+                        ],
+                        help='minimum level to log messages')
     parser.add_argument('-t', '--threads',
                         type=int,
                         default=1,

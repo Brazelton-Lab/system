@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Finished Draft of Subprocesses for integrity_audit. [TheOneHyer]
+
+  First draft of function running checksums completed
+  for both *nix commands and hashlib.
+
 - Added hashlib to integrity_audit. [TheOneHyer]
 
   integrity_audit now links to Python
