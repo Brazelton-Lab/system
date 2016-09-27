@@ -23,7 +23,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a8'
+__version__ = '0.0.1a9'
 
 
 class Directory:
@@ -79,6 +79,9 @@ class File:
         self.checksum = None
         self.mtime = None
         self.size = None
+
+
+# TODO: Add core check function for argparse
 
 
 def sum_calculator(queue, hasher, hash_from, logger):
