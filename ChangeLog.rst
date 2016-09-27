@@ -4,6 +4,15 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Updated TODO in integrity_audit. [TheOneHyer]
+
+  Added TODO statement in integrity_audit
+  to check number fo cores available.
+
+- Added Log Message to integrity_audit. [TheOneHyer]
+
+  Added numerous log messages to integrity_audit.
+
 - Reorganized Thread-Generation in integrity_audit. [TheOneHyer]
 
   Conolidated code for thread processing so only one

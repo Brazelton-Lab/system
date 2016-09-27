@@ -11,7 +11,7 @@ from __future__ import print_function
 import argparse
 import hashlib
 import logging
-from multiprocessing import Process, Queue
+from multiprocessing import Pool, Process, Queue
 import os
 from subprocess import check_output
 import sys
@@ -23,7 +23,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a9'
+__version__ = '0.0.1a10'
 
 
 class Directory:
@@ -81,10 +81,14 @@ class File:
         self.size = None
 
 
-# TODO: Add core check function for argparse
+def analyze_checksums():
+    pass
 
 
-def sum_calculator(queue, hasher, hash_from, logger):
+# TODO: Add core check for argparse
+
+
+def checksum_calculator(queue, hasher, hash_from, logger):
     """Calculate hexadecimal checksum of file from queue using given hasher
 
     Args:
@@ -246,7 +250,7 @@ def main(args):
     # faster than Python's built-in hashlib. Use *sum commands when available.
     # The presence or absence of a sum command greatly influences program flow.
     sum_cmd = which(args.algorithm + 'sum')
-    use_sum = True if sum_cmd is not None else False
+    use_sum = True if sum_cmd is not None else False  # Mostly for readability
 
     if use_sum is True:
         logger.info('Found *nix program: {0}'.format(args.algorithm + 'sum'))
@@ -254,7 +258,7 @@ def main(args):
     else:
         logger.info('Could not find *nix program: {0}'
                     .format(args.algorithm + 'sum'))
-        logger.info('Computing checksums with Python {0} function'
+        logger.info('Computing checksums with Python hashing function: {0}'
                     .format(args.algorithm))
 
     # Variables for use with processing threads
@@ -269,9 +273,9 @@ def main(args):
 
     logger.debug('Initializing daemon subprocesses')
 
-    # Initialize daemons to process
+    # Initialize daemons to process files
     for i in range(args.threads):
-        processes.append(Process(target=sum_calculator,
+        processes.append(Process(target=checksum_calculator,
                                  args=(queue, hasher, hash_from, logger,)))
         processes[i].daemonize = True
         processes[i].start()
@@ -369,6 +373,31 @@ def main(args):
     logger.debug('All daemons have exited')
 
     logger.info('All file checksums calculated')
+
+    logger.info('Comparing file checksums to stored checksums')
+
+    logger.debug('Starting worker pool')
+
+    pool = Pool(processes=args.threads)
+
+    logger.debug('Started worker pool with {0} threads'
+                 .format(str(args.threads)))
+
+    logger.debug('Giving directory structure to pool for checksum comparision')
+
+    pool.imap_unordered(analyze_checksums, dirs)
+
+    logger.debug('Closing pool to further input')
+
+    pool.close()
+
+    logger.debug('Waiting for pool to complete checksum analysis')
+
+    pool.join()
+
+    logger.debug('Pool has exited')
+
+    logger.info('Checksum comparision complete')
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
