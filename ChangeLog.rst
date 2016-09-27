@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Core Check to integrity_audit. [TheOneHyer]
+
+  integrity_audit now ensures number of threads specified
+  by user is valid.
+
 - Added Multiprocessing Pool to integrity_audit. [TheOneHyer]
 
   integrity_audit now has a processor pool for comparing

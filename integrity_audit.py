@@ -11,6 +11,7 @@ from __future__ import print_function
 import argparse
 import hashlib
 import logging
+from itertools import izip, repeat
 from multiprocessing import cpu_count, Pool, Process, Queue
 import os
 from subprocess import check_output
@@ -23,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a11'
+__version__ = '0.0.1a12'
 
 
 class Directory:
@@ -81,14 +82,27 @@ class File:
         self.size = None
 
 
-def analyze_checksums(dir):
+def analyze_checksums(dir, logger):
     """Probes directory for checksum file and compares computed file checksums
 
     Args:
          dir (Directory): Directory class containing files and checksums
+
+         logger (Logger): logging class to log messages
     """
 
     pass
+
+
+def analyze_checksums_caller(argument):
+    """A wrapper to permit Pool.map to work with multiple arguments
+
+    Args:
+         argument (tuple): tuple containing Directory class as first member and
+                           Logger class as second member
+    """
+
+    analyze_checksums(argument[0], argument[1])
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -103,7 +117,7 @@ def checksum_calculator(queue, hasher, hash_from, logger):
          hash_from (str): 'python' if hasher is a hashlib function and 'linux'
                           if hasher is a *nix hash command
 
-        logger (Logger): logging class to log progress
+        logger (Logger): logging class to log messages
     """
 
     # Loop until queue contains kill message
@@ -423,7 +437,9 @@ def main(args):
 
     logger.debug('Giving files to pool for checksum comparisions')
 
-    pool.map(analyze_checksums, dirs)
+    # Following izip trick permits use of multiple arguments in conjunction
+    # with Pool.map in Python 2.7+.
+    pool.map(analyze_checksums_caller, izip(dirs, repeat(logger)))
 
     logger.debug('Closing pool to further input')
 
