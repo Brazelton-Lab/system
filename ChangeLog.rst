@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Reorganized Thread-Generation in integrity_audit. [TheOneHyer]
+
+  Conolidated code for thread processing so only one
+  function is used.
+
 - Added Logging to integrity_audit. [TheOneHyer]
 
   integrity_audit now ahs a properly setup logging

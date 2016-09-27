@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import division
 from __future__ import print_function
 
 """Verify data integrity via checksums
@@ -14,6 +15,7 @@ from multiprocessing import Process, Queue
 import os
 from subprocess import check_output
 import sys
+from time import time
 
 __author__ = 'Alex Hyer'
 __credits__ = 'Christopher Thornton'
@@ -21,7 +23,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a7'
+__version__ = '0.0.1a8'
 
 
 class Directory:
@@ -53,7 +55,7 @@ class Directory:
 
 
 class File:
-    """A simple class to store file locations, checksums, and mtimes
+    """A simple class to store file locations, checksums, mtimes, and sizes
 
     While the data stored in this class is accessible, and often initially
     obtained via the python os library, storing these variables in memory
@@ -66,6 +68,8 @@ class File:
         checksum (str): checksum of file
 
         mtime (int): time of last file modification in seconds since epoch
+
+        size (int): size fo file in bytes
     """
 
     def __init__(self, path):
@@ -74,9 +78,10 @@ class File:
         self.path = path
         self.checksum = None
         self.mtime = None
+        self.size = None
 
 
-def sum_calculator(queue, hasher, hash_from='python'):
+def sum_calculator(queue, hasher, hash_from, logger):
     """Calculate hexadecimal checksum of file from queue using given hasher
 
     Args:
@@ -87,15 +92,22 @@ def sum_calculator(queue, hasher, hash_from='python'):
 
          hash_from (str): 'python' if hasher is a hashlib function and 'linux'
                           if hasher is a *nix hash command
+
+        logger (Logger): logging class to log progress
     """
 
     # Loop until queue contains kill message
     while True:
         f = queue.get()
 
+        logger.debug('Daemon got file: {0}'.format(f.path))
+
         # Break on kill message
         if f == 'DONE':
+            logger.debug('Daemon got kill signal: exiting')
             break
+
+        logger.debug('Calculating checksum for {0}'.format(f.path))
 
         if hash_from == 'linux':
             f.checksum = check_output(hasher, f.path).split(' ')[0]
@@ -109,6 +121,8 @@ def sum_calculator(queue, hasher, hash_from='python'):
                         break
                     hexsum.update(data)
             f.checksum = hexsum.hexdigest()
+
+        logger.debug('Calculated checksum for {0}'.format(f.path))
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -205,8 +219,13 @@ def main(args):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+    start = time()
+
     # Log startup information
     logger.info('Starting integrity_audit')
+    logger.info('Command: {0}'.format(' '.join(sys.argv)))
+    logger.info('Logging to {0}'.format(args.log))
+    logger.info('Will use {0} threads'.format(str(args.threads)))
 
     # Relate hashing algorithm arg to function for downstream use
     hash_functions = {
@@ -218,11 +237,22 @@ def main(args):
         'sha512': hashlib.sha512
     }
 
+    logger.info('Checking for *nix prgram: {0}'.format(args.algorithm + 'sum'))
+
     # In-house tests show that, predictably, Linux *sum commands are much
     # faster than Python's built-in hashlib. Use *sum commands when available.
     # The presence or absence of a sum command greatly influences program flow.
-    sum_cmd = which(args.algo + 'sum')
+    sum_cmd = which(args.algorithm + 'sum')
     use_sum = True if sum_cmd is not None else False
+
+    if use_sum is True:
+        logger.info('Found *nix program: {0}'.format(args.algorithm + 'sum'))
+        logger.info('Computing checksums with {0}'.format(sum_cmd))
+    else:
+        logger.info('Could not find *nix program: {0}'
+                    .format(args.algorithm + 'sum'))
+        logger.info('Computing checksums with Python {0} function'
+                    .format(args.algorithm))
 
     # Variables for use with processing threads
     queue = Queue()
@@ -234,70 +264,121 @@ def main(args):
         hasher = sum_cmd
         hash_from = 'python'
 
+    logger.debug('Initializing daemon subprocesses')
+
     # Initialize daemons to process
     for i in range(args.threads):
         processes.append(Process(target=sum_calculator,
-                                 args=(queue, hasher, hash_from,)))
+                                 args=(queue, hasher, hash_from, logger,)))
         processes[i].daemonize = True
         processes[i].start()
+
+    logger.debug('Intialized {0} daemons'.format(str(len(processes))))
+
+    logger.info('Analyzing file structure from {0} downward'
+                .format(args.directory))
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
     args.recursive = True if args.max_depth > 0 else False  # -m implies -r
     for root, dir_names, file_names in os.walk(args.directory):
 
-        # If directory beyond max depth, skip rest of loop
-        if root.count(os.path.sep) > args.max_depth > -1:
-            continue
-
         norm_root = os.path.normpath(root)
+
+        logger.debug('Found directory: {0}'.format(norm_root))
+
+        # If directory beyond max depth, skip rest of loop
+        if norm_root.count(os.path.sep) > args.max_depth > -1:
+            logger.debug('{0} is {1} directories deep: skipping'
+                         .format(norm_root, str(norm_root.count(os.path.sep))))
+            continue
 
         # Skip hidden directories unless specified
         if args.hidden is False:
             parts = root.split(os.path.sep)
             for part in parts:
                 if part[0] == '.':
+                    logger.debug('{0} is hidden: skipping'.format(norm_root))
                     continue
 
         # Analyze each file in the given directory
         file_classes = []
         for file_name in file_names:
 
+            file_path = os.path.join(norm_root, file_name)
+
+            logger.debug('Found file: {0}'.format(file_path))
+
             # Skip hidden files unless specified
             if args.hidden is False and file_name[0] == '.':
+                logger.debug('{0} is hidden: skipping'.format(file_path))
                 continue
 
             # Skip checksum files
             for key in hash_functions.keys():
                 if file_name.endswith(key + 'sum'):
+                    logger.debug('{0} is a checksum file: skipping'
+                                 .format(file_path))
                     continue
 
+            logger.debug('Initializing class for {0}'.format(file_path))
+
             # Initiate File class and store attributes
-            file_path = os.path.join(norm_root, file_name)
             file_class = File(file_path)
             file_class.mtime = os.path.getmtime(file_path)
+            file_class.size = os.path.getsize(file_path)
             file_classes.append(File(file_path))
 
+            logger.debug('Initialized class for {0}'.format(file_path))
+
             queue.put(file_classes)
+
+            logger.debug('Class placed in processing queue')
+
+        logger.debug('Initializing class for {0}'.format(norm_root))
 
         # Initialize directory and pass File handles
         directory = Directory(norm_root, file_classes)
         dirs.append(directory)
 
+        logger.debug('Initialized class for {0}'.format(norm_root))
+
         # Break loop on first iteration if not recursive
         if args.recursive is False:
+            logger.debug('Recursion deactivated: stopping analysis')
             break
+
+    logger.info('File structure analysis complete')
+
+    logger.debug('Populating end of queue with kill messages')
 
     # Send a kill message to each thread via queue
     for i in processes:
         queue.put('DONE')
 
+    logger.debug('Waiting for daemons to complete')
+
     # Wait for each process to complete before continuing
     for process in processes:
         process.join()
+        logger.debug('A daemon has exited')
+
+    logger.debug('All daemons have exited')
+
+    logger.info('All file checksums calculated')
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
+
+    # Calculate and log end of program run
+    end = time.time()
+    total_size = float(sum([dir.size() for dir in dirs])) / 1073741824.0
+    total_time = (end - start) / 60.0
+
+    logger.info('Analyzed {0} GB of data in {1} minutes'
+                .format(str(total_size), total_time))
+
+    logger.info('Exiting integrity_audit')
 
 
 if __name__ == '__main__':
