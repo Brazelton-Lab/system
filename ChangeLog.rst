@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Multiprocessing Pool to integrity_audit. [TheOneHyer]
+
+  integrity_audit now has a processor pool for comparing
+  computed file checksums against stored file checksums.
+
 - Updated TODO in integrity_audit. [TheOneHyer]
 
   Added TODO statement in integrity_audit

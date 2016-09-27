@@ -11,7 +11,7 @@ from __future__ import print_function
 import argparse
 import hashlib
 import logging
-from multiprocessing import Pool, Process, Queue
+from multiprocessing import cpu_count, Pool, Process, Queue
 import os
 from subprocess import check_output
 import sys
@@ -23,7 +23,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a10'
+__version__ = '0.0.1a11'
 
 
 class Directory:
@@ -81,11 +81,14 @@ class File:
         self.size = None
 
 
-def analyze_checksums():
+def analyze_checksums(dir):
+    """Probes directory for checksum file and compares computed file checksums
+
+    Args:
+         dir (Directory): Directory class containing files and checksums
+    """
+
     pass
-
-
-# TODO: Add core check for argparse
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -130,6 +133,41 @@ def checksum_calculator(queue, hasher, hash_from, logger):
             f.checksum = hexsum.hexdigest()
 
         logger.debug('Calculated checksum for {0}'.format(f.path))
+
+
+def thread_check(threads):
+    """Ensure number of threads specified doesn't exceed maximum threads
+
+    Args:
+        threads (int): number of threads desired by user
+
+    Returns:
+        int: number of threads user specified in number is valid
+
+    Raises:
+        TypeError: if threads is not an integer
+
+        ValueError: if threads is less than one or greater than number of
+                    threads available on computer
+    """
+
+    try:
+        assert type(threads) is int
+    except AssertionError:
+        raise TypeError('{0} is not an integer'.format(str(threads)))
+
+    try:
+        assert threads >= 1
+    except AssertionError:
+        raise ValueError('Must use at least one thread')
+
+    try:
+        assert threads <= cpu_count()
+    except AssertionError:
+        raise ValueError('Cannot use more threads than available: {0}'.
+                         format(str(cpu_count())))
+
+    return int(threads)
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -383,9 +421,9 @@ def main(args):
     logger.debug('Started worker pool with {0} threads'
                  .format(str(args.threads)))
 
-    logger.debug('Giving directory structure to pool for checksum comparision')
+    logger.debug('Giving files to pool for checksum comparisions')
 
-    pool.imap_unordered(analyze_checksums, dirs)
+    pool.map(analyze_checksums, dirs)
 
     logger.debug('Closing pool to further input')
 
@@ -397,7 +435,7 @@ def main(args):
 
     logger.debug('Pool has exited')
 
-    logger.info('Checksum comparision complete')
+    logger.info('Checksum comparisions complete')
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
@@ -458,7 +496,7 @@ if __name__ == '__main__':
                         ],
                         help='minimum level to log messages')
     parser.add_argument('-t', '--threads',
-                        type=int,
+                        type=thread_check,
                         default=1,
                         help='number of threads to run check with')
     args = parser.parse_args()
