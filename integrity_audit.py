@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a12'
+__version__ = '0.0.1a13'
 
 
 class Directory:
@@ -124,29 +124,51 @@ def checksum_calculator(queue, hasher, hash_from, logger):
     while True:
         f = queue.get()
 
-        logger.debug('Daemon got file: {0}'.format(f.path))
+        logger.debug('Daemon received file: {0}'.format(f.path))
 
         # Break on kill message
         if f == 'DONE':
-            logger.debug('Daemon got kill signal: exiting')
+            logger.debug('Daemon received kill signal: exiting')
             break
 
-        logger.debug('Calculating checksum for {0}'.format(f.path))
+        try:
+            assert os.path.isfile(f.path) is True
+        except AssertionError:
+            logger.warning('File no longer exists: {0}'.format(f.path))
+            logger.warning('Skipping checksum calculation: {0}'.format(f.path))
+            continue
 
-        if hash_from == 'linux':
-            f.checksum = check_output(hasher, f.path).split(' ')[0]
-        elif hash_from == 'python':
-            # Process file contents in memory efficient manner
-            with open(f.path, 'rb') as file_handle:
-                hexsum = hasher()
-                while True:
-                    data = file_handle.read(hasher.block_size)
-                    if not data:
-                        break
-                    hexsum.update(data)
-            f.checksum = hexsum.hexdigest()
+        try:
+            assert os.access(f.path, os.R_OK) is True
+        except AssertionError:
+            logger.warning('Cannot read {0}'.format(f.path))
+            logger.warning('Skipping checksum calculation: {0}'.format(f.path))
+            continue
 
-        logger.debug('Calculated checksum for {0}'.format(f.path))
+        logger.debug('Calculating checksum: {0}'.format(f.path))
+
+        try:
+            if hash_from == 'linux':
+                f.checksum = check_output(hasher, f.path).split(' ')[0]
+            elif hash_from == 'python':
+                # Process file contents in memory efficient manner
+                with open(f.path, 'rb') as file_handle:
+                    hexsum = hasher()
+                    while True:
+                        data = file_handle.read(hasher.block_size)
+                        if not data:
+                            break
+                        hexsum.update(data)
+                f.checksum = hexsum.hexdigest()
+        except (KeyboardInterrupt, SystemExit):  # Exit if asked
+            raise
+        except Exception as error:  # Skip calculation on all other errors
+            logger.error('Suppressed error: {0}'.format(error))
+            f.checksum = None
+            logger.error('Reset checksum to None: {0}'.format(f.path))
+            logger.error('Skipping checksum calculation: {0}'.format(f.path))
+        else:
+            logger.debug('Calculated checksum: {0}'.format(f.path))
 
 
 def thread_check(threads):
@@ -283,8 +305,8 @@ def main(args):
     # Log startup information
     logger.info('Starting integrity_audit')
     logger.info('Command: {0}'.format(' '.join(sys.argv)))
-    logger.info('Logging to {0}'.format(args.log))
-    logger.info('Will use {0} threads'.format(str(args.threads)))
+    logger.info('Log Location: {0}'.format(args.log))
+    logger.info('Threads: {0}'.format(str(args.threads)))
 
     # Relate hashing algorithm arg to function for downstream use
     hash_functions = {
@@ -296,7 +318,8 @@ def main(args):
         'sha512': hashlib.sha512
     }
 
-    logger.info('Checking for *nix prgram: {0}'.format(args.algorithm + 'sum'))
+    logger.info('Checking for *nix program: {0}'.format(args.algorithm +
+                                                        'sum'))
 
     # In-house tests show that, predictably, Linux *sum commands are much
     # faster than Python's built-in hashlib. Use *sum commands when available.
@@ -305,8 +328,8 @@ def main(args):
     use_sum = True if sum_cmd is not None else False  # Mostly for readability
 
     if use_sum is True:
-        logger.info('Found *nix program: {0}'.format(args.algorithm + 'sum'))
-        logger.info('Computing checksums with {0}'.format(sum_cmd))
+        logger.info('Found *nix program: {0}'.format(sum_cmd))
+        logger.info('Computing checksums *nix program: {0}'.format(sum_cmd))
     else:
         logger.info('Could not find *nix program: {0}'
                     .format(args.algorithm + 'sum'))
@@ -432,13 +455,16 @@ def main(args):
 
     pool = Pool(processes=args.threads)
 
-    logger.debug('Started worker pool with {0} threads'
+    logger.debug('Started worker pool with {0} workers'
                  .format(str(args.threads)))
 
-    logger.debug('Giving files to pool for checksum comparisions')
+    logger.debug('Giving files to pool for checksum comparisons')
 
     # Following izip trick permits use of multiple arguments in conjunction
     # with Pool.map in Python 2.7+.
+    # Credit: J.F. Sebastion
+    # Site: https://stackoverflow.com/questions/5442910/
+    # python-multiprocessing-pool-map-for-multiple-arguments
     pool.map(analyze_checksums_caller, izip(dirs, repeat(logger)))
 
     logger.debug('Closing pool to further input')
@@ -451,14 +477,14 @@ def main(args):
 
     logger.debug('Pool has exited')
 
-    logger.info('Checksum comparisions complete')
+    logger.info('Checksum comparisons complete')
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
 
     # Calculate and log end of program run
     end = time.time()
-    total_size = float(sum([dir.size() for dir in dirs])) / 1073741824.0
+    total_size = float(sum([d.size() for d in dirs])) / 1073741824.0
     total_time = (end - start) / 60.0
 
     logger.info('Analyzed {0} GB of data in {1} minutes'

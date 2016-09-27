@@ -4,6 +4,12 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added itertools tricks to integrity_audit. [TheOneHyer]
+
+  Python 2.7 does not support sending multiple
+  arguments to processes via Pool.map. Added itertools
+  trick to permit usage of multiple arguments.
+
 - Added Core Check to integrity_audit. [TheOneHyer]
 
   integrity_audit now ensures number of threads specified
