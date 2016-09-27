@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Logging to integrity_audit. [TheOneHyer]
+
+  integrity_audit now ahs a properly setup logging
+  facility for ease of use later.
+
 - Finished Draft of Subprocesses for integrity_audit. [TheOneHyer]
 
   First draft of function running checksums completed

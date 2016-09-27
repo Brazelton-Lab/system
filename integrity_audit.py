@@ -21,7 +21,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a6'
+__version__ = '0.0.1a7'
 
 
 class Directory:
@@ -76,30 +76,7 @@ class File:
         self.mtime = None
 
 
-def sum_cmd_calculator(queue, sum_cmd):
-    """Calculate hexadecimal checksum of file using sum_cmd
-
-    Args:
-         queue (Queue): multiprocessing Queue class containing Directory
-                        classes to process
-
-         sum_cmd (str): path to executable *nix checksum command
-    """
-
-    # Loop until queue contains kill message
-    while True:
-        directory = queue.get()
-
-        # Break on kill message
-        if directory == 'DONE':
-            break
-
-        # Process file contents using *nix command
-        for f in directory.files:
-            f.checksum = check_output(sum_cmd, f.path).split(' ')[0]
-
-
-def sum_py_calculator(queue, hasher):
+def sum_calculator(queue, hasher, hash_from='python'):
     """Calculate hexadecimal checksum of file from queue using given hasher
 
     Args:
@@ -107,6 +84,9 @@ def sum_py_calculator(queue, hasher):
                         process
 
          hasher (function): function from hashlib to compute file checksums
+
+         hash_from (str): 'python' if hasher is a hashlib function and 'linux'
+                          if hasher is a *nix hash command
     """
 
     # Loop until queue contains kill message
@@ -117,18 +97,17 @@ def sum_py_calculator(queue, hasher):
         if f == 'DONE':
             break
 
-        # Process file contents in memory efficient manner
-        with open(f.path, 'rb') as file_handle:
-            hexsum = hasher()
-            while True:
-                data = file_handle.read(hasher.block_size)
-
-                # Break on empty string
-                if not data:
-                    break
-
-                hexsum.update(data)
-
+        if hash_from == 'linux':
+            f.checksum = check_output(hasher, f.path).split(' ')[0]
+        elif hash_from == 'python':
+            # Process file contents in memory efficient manner
+            with open(f.path, 'rb') as file_handle:
+                hexsum = hasher()
+                while True:
+                    data = file_handle.read(hasher.block_size)
+                    if not data:
+                        break
+                    hexsum.update(data)
             f.checksum = hexsum.hexdigest()
 
 
@@ -226,6 +205,9 @@ def main(args):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+    # Log startup information
+    logger.info('Starting integrity_audit')
+
     # Relate hashing algorithm arg to function for downstream use
     hash_functions = {
         'md5': hashlib.md5,
@@ -242,24 +224,22 @@ def main(args):
     sum_cmd = which(args.algo + 'sum')
     use_sum = True if sum_cmd is not None else False
 
-    # Variables for use with multiprocessing module
+    # Variables for use with processing threads
     queue = Queue()
     processes = []
-
-    # Initialize daemons to process checksums
-    if use_sum:
-        for i in range(args.threads):
-            processes.append(Process(target=sum_cmd_calculator,
-                                     args=(queue, sum_cmd,)))
-            processes[i].daemonize = True
-            processes[i].start()
-    else:
+    if use_sum is True:
         hasher = hash_functions[args.algorithm]
-        for i in range(args.threads):
-            processes.append(Process(target=sum_py_calculator,
-                                     args=(queue, hasher,)))
-            processes[i].daemonize = True
-            processes[i].start()
+        hash_from = 'linux'
+    else:
+        hasher = sum_cmd
+        hash_from = 'python'
+
+    # Initialize daemons to process
+    for i in range(args.threads):
+        processes.append(Process(target=sum_calculator,
+                                 args=(queue, hasher, hash_from,)))
+        processes[i].daemonize = True
+        processes[i].start()
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
@@ -298,17 +278,11 @@ def main(args):
             file_class.mtime = os.path.getmtime(file_path)
             file_classes.append(File(file_path))
 
-            # Send file to queue for processing
-            if not use_sum:
-                queue.put(file_classes)
+            queue.put(file_classes)
 
         # Initialize directory and pass File handles
         directory = Directory(norm_root, file_classes)
         dirs.append(directory)
-
-        # Send directory to queue for processing
-        if use_sum:
-            queue.put(directory)
 
         # Break loop on first iteration if not recursive
         if args.recursive is False:
