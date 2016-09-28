@@ -9,6 +9,7 @@ from __future__ import print_function
 """
 
 import argparse
+from glob import iglob
 import hashlib
 import logging
 from itertools import izip, repeat
@@ -126,7 +127,13 @@ def analyze_checksums(d, hasher, logger):
                 line = line.strip().split()
                 checksums[line[0]] = line[-1]
 
-        # TODO: add warning for checksums of non-existent files (glob)
+        # Ensure all files listed in checksum file exist
+        files = [os.path.basename(path) for path in iglob(d.path)]
+        for key,value in checksums.items():
+            if key not in files:
+                logger.warning('Checksum file {0} contains checksum for '
+                               'non-existent file: {1}'
+                               .format(checksum_file_path, key))
 
         # Analyze checksums
         for f in d.files:
