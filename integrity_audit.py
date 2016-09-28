@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a15'
+__version__ = '0.0.1a16'
 
 
 class Directory:
@@ -82,11 +82,13 @@ class File:
         self.size = None
 
 
-def analyze_checksums(dir, logger):
+def analyze_checksums(dir, hasher, logger):
     """Probes directory for checksum file and compares computed file checksums
 
     Args:
          dir (Directory): Directory class containing files and checksums
+
+         hasher (str): hashing algorithm used to analyze files
 
          logger (Logger): logging class to log messages
 
@@ -111,7 +113,7 @@ def analyze_checksums_caller(argument):
         None: simply return something to sate Pool.map
     """
 
-    return analyze_checksums(argument[0], argument[1])
+    return analyze_checksums(argument[0], argument[1], argument[2])
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -524,7 +526,9 @@ def main(args):
     # Credit: J.F. Sebastion
     # Site: https://stackoverflow.com/questions/5442910/
     # python-multiprocessing-pool-map-for-multiple-arguments
-    pool.map(analyze_checksums_caller, izip(dirs, repeat(logger)))
+    pool.map(analyze_checksums_caller, izip(dirs,
+                                            repeat(args.algorithm),
+                                            repeat(logger)))
 
     logger.debug('Closing pool to further input')
 
