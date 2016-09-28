@@ -4,6 +4,10 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- ITentatively Finished integrity_audit. [TheOneHyer]
+
+  integrity_audit is complete less testing. Writes checksum files.
+
 - Integrity_audit Verifies File Existence for Checksums. [Alex Hyer]
 
   Checksum comparision function now ensures that all files

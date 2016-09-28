@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a18'
+__version__ = '0.0.1a19'
 
 
 class Directory:
@@ -81,6 +81,75 @@ class File:
         self.checksum = None
         self.mtime = None
         self.size = None
+
+
+class ThreadCheck(argparse.Action):
+    """Argparse Action that ensures number of threads requested is valid
+
+    Attributes:
+        option_strings (list): list of str giving command line flags that
+                               call this action
+
+        dest (str): Namespace reference to value
+
+        nargs (bool): True if multiple arguments specified
+
+        **kwargs (various): optional arguments to pass to super call
+    """
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        """Initialize class and spawn self as Base Class w/o nargs"""
+
+        # Only accept a single value to analyze
+        if nargs is not None:
+            raise ValueError('nargs not allowed for ThreadCheck')
+
+        # Call self again but without nargs
+        super(ThreadCheck, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        """Called by Argparse when user specifies multiple threads
+
+        Simply asserts that the number of threads requested is greater than 0
+        but not greater than the maximum number of threads the computer
+        can support.
+
+        Args:
+            parser (ArgumentParser): parser used to generate values
+
+            namespace (Namespace): parse_args() generated namespace
+
+            values (int): actual value specified by user
+
+            option_string (str): argument flag used to call this function
+
+        Raises:
+            TypeError: if threads is not an integer
+
+            ValueError: if threads is less than one or greater than number of
+                        threads available on computer
+        """
+
+        threads = values  # Renamed for readability
+
+        # This try/except should already be taken care of by Argparse
+        try:
+            assert type(threads) is int
+        except AssertionError:
+            raise TypeError('{0} is not an integer'.format(str(threads)))
+
+        try:
+            assert threads >= 1
+        except AssertionError:
+            raise ValueError('Must use at least one thread')
+
+        try:
+            assert threads <= cpu_count()
+        except AssertionError:
+            raise ValueError('Cannot use more threads than available: {0}'
+                             .format(str(cpu_count())))
+
+        setattr(namespace, self.dest, threads)
 
 
 def analyze_checksums(d, hasher, logger):
@@ -288,41 +357,6 @@ def checksum_calculator(queue, hasher, hash_from, logger):
             logger.error('Skipping checksum calculation: {0}'.format(f.path))
         else:
             logger.debug('Calculated checksum: {0}'.format(f.path))
-
-
-def thread_check(threads):
-    """Ensure number of threads specified doesn't exceed maximum threads
-
-    Args:
-        threads (int): number of threads desired by user
-
-    Returns:
-        int: number of threads user specified in number is valid
-
-    Raises:
-        TypeError: if threads is not an integer
-
-        ValueError: if threads is less than one or greater than number of
-                    threads available on computer
-    """
-
-    try:
-        assert type(threads) is int
-    except AssertionError:
-        raise TypeError('{0} is not an integer'.format(str(threads)))
-
-    try:
-        assert threads >= 1
-    except AssertionError:
-        raise ValueError('Must use at least one thread')
-
-    try:
-        assert threads <= cpu_count()
-    except AssertionError:
-        raise ValueError('Cannot use more threads than available: {0}'
-                         .format(str(cpu_count())))
-
-    return int(threads)
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -706,7 +740,8 @@ if __name__ == '__main__':
                         ],
                         help='minimum level to log messages')
     parser.add_argument('-t', '--threads',
-                        type=thread_check,
+                        action=ThreadCheck,
+                        type=int,
                         default=1,
                         help='number of threads to run check with')
     args = parser.parse_args()
