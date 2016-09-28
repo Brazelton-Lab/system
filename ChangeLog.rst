@@ -4,6 +4,16 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Integrity_audit Verifies File Existence for Checksums. [Alex Hyer]
+
+  Checksum comparision function now ensures that all files
+  listed in checksum file exist.
+
+- Added Checksum Comparison to integrity_audit. [TheOneHyer]
+
+  integrity_audit now compares stored checksums to calculated
+  ones.
+
 - Added Internal Argument for integrity_audit. [TheOneHyer]
 
   Added ability to pass algorithm to checksum_analyzer

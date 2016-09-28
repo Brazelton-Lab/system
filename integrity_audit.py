@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a17'
+__version__ = '0.0.1a18'
 
 
 class Directory:
@@ -137,10 +137,24 @@ def analyze_checksums(d, hasher, logger):
 
         # Analyze checksums
         for f in d.files:
+
             file_name = os.path.basename(f.path)
+
+            # Skip non-existent files
+            try:
+                assert os.path.isfile(f.path) is True
+            except AssertionError:
+                logger.warning('File no longer exists: {0}'.format(f.path))
+                logger.warning('Skipping file checksum comparision: {0}'
+                               .format(f.path))
+                del checksums[file_name]
+                logger.warning('Removed file checksum from memory: {0}'
+                               .format(f.path))
+                continue
+
             if file_name in checksums.keys():
-                logger.debug('File {0} checksum stored in checksums file {1}'
-                             .format(f.path, checksum_file_path))
+                logger.debug('File checksum stored in checksums file: {0}'
+                             .format(f.path))
                 if f.checksum == checksums[file_name]:
                     logger.debug('File checksum matches stored checksum: {0}'
                                  .format(f.path))
@@ -149,18 +163,49 @@ def analyze_checksums(d, hasher, logger):
                                    'checksum: {0}'.format(f.path))
                     logger.warning('File {0} last modified: {1}'
                                    .format(f.path, f.mtime))
-                    logger.warning('Storing new checksum for file: {0}'
-                                   .format(f.path))
                     checksums[file_name] = f.checksum
+                    logger.warning('Formatted new checksum for checksum file: '
+                                   '{0}'.format(f.path))
             else:
-                # TODO: Add new files to checksum
-                pass
+                logger.info('File checksum not stored in checksum file: {0}'
+                            .format(f.path))
+                checksums[file_name] = f.checksum
+                logger.info('File checksum formatted for checksum file: {0}'
+                            .format(f.path))
     else:
+
         logger.debug('Could not find checksum file in directory: {0}'
                      .format(d.path))
 
-    # TODO: Add checking checksums in a directory
-    # TODO: Add writing checksum files to directory
+        logger.info('Formatting file checksums for directory: {0}'
+                    .format(d.path))
+
+        for f in d.files:
+
+            file_name = os.path.basename(f.path)
+
+            # Skip non-existent files
+            try:
+                assert os.path.isfile(f.path) is True
+            except AssertionError:
+                logger.warning('File no longer exists: {0}'.format(f.path))
+                logger.warning('Skipping file checksum formatting: {0}'
+                               .format(f.path))
+                continue
+
+            checksums[file_name] = f.checksum
+
+            logger.info('File checksum formatted: {0}'.format(f.path))
+
+    # Write checksum file
+    try:
+        with open(checksum_file_path, 'w') as checksum_handle:
+            for key, value in checksums.items():
+                output = key + '  ' + value + os.linesep
+                checksum_handle.write(output)
+    except IOError:
+        logger.error('Cannot write checksum file: {0}'
+                     .format(checksum_file_path))
 
     return None
 
