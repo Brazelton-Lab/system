@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a13'
+__version__ = '0.0.1a14'
 
 
 class Directory:
@@ -91,6 +91,9 @@ def analyze_checksums(dir, logger):
          logger (Logger): logging class to log messages
     """
 
+    # TODO: Add checking checksums in a directory
+    # TODO: Add writing checksum files to directory
+
     pass
 
 
@@ -141,7 +144,7 @@ def checksum_calculator(queue, hasher, hash_from, logger):
         try:
             assert os.access(f.path, os.R_OK) is True
         except AssertionError:
-            logger.warning('Cannot read {0}'.format(f.path))
+            logger.warning('Cannot read file: {0}'.format(f.path))
             logger.warning('Skipping checksum calculation: {0}'.format(f.path))
             continue
 
@@ -369,6 +372,12 @@ def main(args):
 
         logger.debug('Found directory: {0}'.format(norm_root))
 
+        try:
+            assert os.access(norm_root, os.W_OK) is True
+        except AssertionError:
+            logger.warning('Cannot write to directory: {0}'.format(norm_root))
+            logger.warning('Will attempt to analyze checksums of file anyway')
+
         # If directory beyond max depth, skip rest of loop
         if norm_root.count(os.path.sep) > args.max_depth > -1:
             logger.debug('{0} is {1} directories deep: skipping'
@@ -390,6 +399,14 @@ def main(args):
             file_path = os.path.join(norm_root, file_name)
 
             logger.debug('Found file: {0}'.format(file_path))
+
+            # Skip unreadable files
+            try:
+                assert os.access(file_path, os.R_OK) is True
+            except AssertionError:
+                logger.warning('Cannot read file: {0}'.format(file_path))
+                logger.warning('Skipping file: {0}'.format(file_path))
+                continue
 
             # Skip hidden files unless specified
             if args.hidden is False and file_name[0] == '.':
@@ -478,9 +495,6 @@ def main(args):
     logger.debug('Pool has exited')
 
     logger.info('Checksum comparisons complete')
-
-    # TODO: Add checking checksums in a directory
-    # TODO: Add writing checksum files to directory
 
     # Calculate and log end of program run
     end = time.time()
