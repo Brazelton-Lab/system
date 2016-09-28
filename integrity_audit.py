@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a14'
+__version__ = '0.0.1a15'
 
 
 class Directory:
@@ -89,12 +89,15 @@ def analyze_checksums(dir, logger):
          dir (Directory): Directory class containing files and checksums
 
          logger (Logger): logging class to log messages
+
+    Returns:
+        None: simply return something to sate Pool.map
     """
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
 
-    pass
+    return None
 
 
 def analyze_checksums_caller(argument):
@@ -103,9 +106,12 @@ def analyze_checksums_caller(argument):
     Args:
          argument (tuple): tuple containing Directory class as first member and
                            Logger class as second member
+
+    Returns:
+        None: simply return something to sate Pool.map
     """
 
-    analyze_checksums(argument[0], argument[1])
+    return analyze_checksums(argument[0], argument[1])
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -203,8 +209,8 @@ def thread_check(threads):
     try:
         assert threads <= cpu_count()
     except AssertionError:
-        raise ValueError('Cannot use more threads than available: {0}'.
-                         format(str(cpu_count())))
+        raise ValueError('Cannot use more threads than available: {0}'
+                         .format(str(cpu_count())))
 
     return int(threads)
 
@@ -358,7 +364,7 @@ def main(args):
         processes[i].daemonize = True
         processes[i].start()
 
-    logger.debug('Intialized {0} daemons'.format(str(len(processes))))
+    logger.debug('Initialized {0} daemons'.format(str(len(processes))))
 
     logger.info('Analyzing file structure from {0} downward'
                 .format(args.directory))
@@ -372,16 +378,40 @@ def main(args):
 
         logger.debug('Found directory: {0}'.format(norm_root))
 
+        # Skip non-existent directories
+        try:
+            assert os.path.isdir(norm_root) is True
+        except AssertionError:
+            logger.warning('Directory no longer exists: {0}'.format(norm_root))
+            logger.warning('Skipping directory: {0}'.format(norm_root))
+            continue
+        else:
+            logger.debug('Directory exists: {0}'.format(norm_root))
+
+        # Skip unreadable directories
+        try:
+            assert os.access(norm_root, os.R_OK) is True
+        except AssertionError:
+            logger.warning('Cannot read from directory: {0}'.format(norm_root))
+            logger.warning('Skipping directory: {0}'.format(norm_root))
+            continue
+        else:
+            logger.debug('Can read from directory: {0}'.format(norm_root))
+
+        # Warn about un-writeable directories
         try:
             assert os.access(norm_root, os.W_OK) is True
         except AssertionError:
             logger.warning('Cannot write to directory: {0}'.format(norm_root))
             logger.warning('Will attempt to analyze checksums of file anyway')
+        else:
+            logger.debug('Can write to directory: {0}'.format(norm_root))
 
         # If directory beyond max depth, skip rest of loop
         if norm_root.count(os.path.sep) > args.max_depth > -1:
-            logger.debug('{0} is {1} directories deep: skipping'
-                         .format(norm_root, str(norm_root.count(os.path.sep))))
+            logger.debug('Directory is {0} directories deep: {1}'
+                         .format(str(norm_root.count(os.path.sep))), norm_root)
+            logger.debug('Skipping directory: {0}'.format(norm_root))
             continue
 
         # Skip hidden directories unless specified
@@ -389,7 +419,8 @@ def main(args):
             parts = root.split(os.path.sep)
             for part in parts:
                 if part[0] == '.':
-                    logger.debug('{0} is hidden: skipping'.format(norm_root))
+                    logger.debug('Directory is hidden: {0}'.format(norm_root))
+                    logger.debug('Skipping directory: {0}'.format(norm_root))
                     continue
 
         # Analyze each file in the given directory
@@ -400,6 +431,15 @@ def main(args):
 
             logger.debug('Found file: {0}'.format(file_path))
 
+            # Skip non-existent files
+            try:
+                assert os.path.isfile(file_path) is True
+            except AssertionError:
+                logger.warning('File no longer exists: {0}'.format(file_path))
+                logger.warning('Skipping file: {0}'.format(file_path))
+            else:
+                logger.debug('File exists: {0}'.format(file_path))
+
             # Skip unreadable files
             try:
                 assert os.access(file_path, os.R_OK) is True
@@ -407,8 +447,10 @@ def main(args):
                 logger.warning('Cannot read file: {0}'.format(file_path))
                 logger.warning('Skipping file: {0}'.format(file_path))
                 continue
+            else:
+                logger.debug('Can read file: {0}'.format(file_path))
 
-            # Skip hidden files unless specified
+            # Skip hidden files
             if args.hidden is False and file_name[0] == '.':
                 logger.debug('{0} is hidden: skipping'.format(file_path))
                 continue
@@ -416,8 +458,8 @@ def main(args):
             # Skip checksum files
             for key in hash_functions.keys():
                 if file_name.endswith(key + 'sum'):
-                    logger.debug('{0} is a checksum file: skipping'
-                                 .format(file_path))
+                    logger.debug('Checksum file found: {0}'.format(file_path))
+                    logger.debug('Skipping file: {0}'.format(file_path))
                     continue
 
             logger.debug('Initializing class for {0}'.format(file_path))
@@ -428,7 +470,7 @@ def main(args):
             file_class.size = os.path.getsize(file_path)
             file_classes.append(File(file_path))
 
-            logger.debug('Initialized class for {0}'.format(file_path))
+            logger.debug('Initialized class for file: {0}'.format(file_path))
 
             queue.put(file_classes)
 
@@ -436,11 +478,11 @@ def main(args):
 
         logger.debug('Initializing class for {0}'.format(norm_root))
 
-        # Initialize directory and pass File handles
+        # Initialize Directory and pass File handles
         directory = Directory(norm_root, file_classes)
         dirs.append(directory)
 
-        logger.debug('Initialized class for {0}'.format(norm_root))
+        logger.debug('Initialized class for directory: {0}'.format(norm_root))
 
         # Break loop on first iteration if not recursive
         if args.recursive is False:

@@ -4,6 +4,17 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Warning Messages and TODO to integrity_audit. [TheOneHyer]
+
+  Moved integrity_audit TODO statements to appropriate
+  location. Added Warning messages in primary loop of program.
+
+- Added Warning Messages in integrity_audit. [TheOneHyer]
+
+  integrity_audit now catches runtime errors during checksum
+  calculations and suppresses them (skips the calculation).
+  Error is reported. Also Warns of inaccessible files.
+
 - Added itertools tricks to integrity_audit. [TheOneHyer]
 
   Python 2.7 does not support sending multiple
