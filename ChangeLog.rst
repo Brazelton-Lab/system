@@ -4,6 +4,17 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added Internal Argument for integrity_audit. [TheOneHyer]
+
+  Added ability to pass algorithm to checksum_analyzer
+  function of integrity_audit.
+
+- Added Assertions and Debug to integrity_audit. [TheOneHyer]
+
+  integrity_audit now has many more assertions for file
+  and directory existence and permissions with associated
+  debug statements.
+
 - Added Warning Messages and TODO to integrity_audit. [TheOneHyer]
 
   Moved integrity_audit TODO statements to appropriate

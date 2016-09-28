@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a16'
+__version__ = '0.0.1a17'
 
 
 class Directory:
@@ -82,11 +82,11 @@ class File:
         self.size = None
 
 
-def analyze_checksums(dir, hasher, logger):
-    """Probes directory for checksum file and compares computed file checksums
+def analyze_checksums(d, hasher, logger):
+    """Probes d for checksum file and compares computed file checksums
 
     Args:
-         dir (Directory): Directory class containing files and checksums
+         d (Directory): Directory class containing files and checksums
 
          hasher (str): hashing algorithm used to analyze files
 
@@ -95,6 +95,62 @@ def analyze_checksums(dir, hasher, logger):
     Returns:
         None: simply return something to sate Pool.map
     """
+
+    logger.debug('Comparing checksums for files in directory: {0}'
+                 .format(d.path))
+
+    # Ensure directory still exists
+    try:
+        assert os.path.isdir(d.path) is True
+    except AssertionError:
+        logger.warning('Directory no longer exists: {0}'.format(d.path))
+        logger.warning('Skipping directory: {0}'.format(d.path))
+        logger.warning('Files checksums in directory cannot be analyzed: {0}'
+                       .format(d.path))
+        return None
+    else:
+        logger.debug('Directory exists: {0}'.format(d.path))
+
+    logger.debug('Looking for checksum file in directory: {0}'.format(d.path))
+
+    checksum_file_path = os.path.join(d.path, hasher + 'sum')
+    checksums = {}
+
+    if os.path.isfile(checksum_file_path) is True:
+
+        logger.debug('Found checksum file: {0}'.format(checksum_file_path))
+
+        # Read checksums file into memory
+        with open(checksum_file_path, 'r') as file_handle:
+            for line in file_handle:
+                line = line.strip().split()
+                checksums[line[0]] = line[-1]
+
+        # TODO: add warning for checksums of non-existent files (glob)
+
+        # Analyze checksums
+        for f in d.files:
+            file_name = os.path.basename(f.path)
+            if file_name in checksums.keys():
+                logger.debug('File {0} checksum stored in checksums file {1}'
+                             .format(f.path, checksum_file_path))
+                if f.checksum == checksums[file_name]:
+                    logger.debug('File checksum matches stored checksum: {0}'
+                                 .format(f.path))
+                else:
+                    logger.warning('File checksum differs from stored '
+                                   'checksum: {0}'.format(f.path))
+                    logger.warning('File {0} last modified: {1}'
+                                   .format(f.path, f.mtime))
+                    logger.warning('Storing new checksum for file: {0}'
+                                   .format(f.path))
+                    checksums[file_name] = f.checksum
+            else:
+                # TODO: Add new files to checksum
+                pass
+    else:
+        logger.debug('Could not find checksum file in directory: {0}'
+                     .format(d.path))
 
     # TODO: Add checking checksums in a directory
     # TODO: Add writing checksum files to directory
@@ -459,7 +515,7 @@ def main(args):
 
             # Skip checksum files
             for key in hash_functions.keys():
-                if file_name.endswith(key + 'sum'):
+                if file_name == (key + 'sum'):
                     logger.debug('Checksum file found: {0}'.format(file_path))
                     logger.debug('Skipping file: {0}'.format(file_path))
                     continue
