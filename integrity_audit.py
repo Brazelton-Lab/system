@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a19'
+__version__ = '0.0.1a20'
 
 
 class Directory:
@@ -152,7 +152,7 @@ class ThreadCheck(argparse.Action):
         setattr(namespace, self.dest, threads)
 
 
-def analyze_checksums(d, hasher, logger):
+def analyze_checksums(d, hasher):
     """Probes d for checksum file and compares computed file checksums
 
     Args:
@@ -160,35 +160,34 @@ def analyze_checksums(d, hasher, logger):
 
          hasher (str): hashing algorithm used to analyze files
 
-         logger (Logger): logging class to log messages
-
     Returns:
         None: simply return something to sate Pool.map
     """
 
-    logger.debug('Comparing checksums for files in directory: {0}'
-                 .format(d.path))
+    # logger.debug('Comparing checksums for files in directory: {0}'
+    #             .format(d.path))
 
     # Ensure directory still exists
     try:
         assert os.path.isdir(d.path) is True
     except AssertionError:
-        logger.warning('Directory no longer exists: {0}'.format(d.path))
-        logger.warning('Skipping directory: {0}'.format(d.path))
-        logger.warning('Files checksums in directory cannot be analyzed: {0}'
-                       .format(d.path))
+        # logger.warning('Directory no longer exists: {0}'.format(d.path))
+        # logger.warning('Skipping directory: {0}'.format(d.path))
+        # logger.warning('Files checksums in directory cannot be analyzed: {0}'
+        #                .format(d.path))
         return None
     else:
-        logger.debug('Directory exists: {0}'.format(d.path))
+        pass
+        # logger.debug('Directory exists: {0}'.format(d.path))
 
-    logger.debug('Looking for checksum file in directory: {0}'.format(d.path))
+    #logger.debug('Looking for checksum file in directory: {0}'.format(d.path))
 
     checksum_file_path = os.path.join(d.path, hasher + 'sum')
     checksums = {}
 
     if os.path.isfile(checksum_file_path) is True:
 
-        logger.debug('Found checksum file: {0}'.format(checksum_file_path))
+        # logger.debug('Found checksum file: {0}'.format(checksum_file_path))
 
         # Read checksums file into memory
         with open(checksum_file_path, 'r') as file_handle:
@@ -200,9 +199,10 @@ def analyze_checksums(d, hasher, logger):
         files = [os.path.basename(path) for path in iglob(d.path)]
         for key,value in checksums.items():
             if key not in files:
-                logger.warning('Checksum file {0} contains checksum for '
-                               'non-existent file: {1}'
-                               .format(checksum_file_path, key))
+                # logger.warning('Checksum file {0} contains checksum for '
+                #                'non-existent file: {1}'
+                #                .format(checksum_file_path, key))
+                pass
 
         # Analyze checksums
         for f in d.files:
@@ -213,41 +213,43 @@ def analyze_checksums(d, hasher, logger):
             try:
                 assert os.path.isfile(f.path) is True
             except AssertionError:
-                logger.warning('File no longer exists: {0}'.format(f.path))
-                logger.warning('Skipping file checksum comparision: {0}'
-                               .format(f.path))
+                # logger.warning('File no longer exists: {0}'.format(f.path))
+                # logger.warning('Skipping file checksum comparision: {0}'
+                #                .format(f.path))
                 del checksums[file_name]
-                logger.warning('Removed file checksum from memory: {0}'
-                               .format(f.path))
+                # logger.warning('Removed file checksum from memory: {0}'
+                #                .format(f.path))
                 continue
 
             if file_name in checksums.keys():
-                logger.debug('File checksum stored in checksums file: {0}'
-                             .format(f.path))
+                # logger.debug('File checksum stored in checksums file: {0}'
+                #              .format(f.path))
                 if f.checksum == checksums[file_name]:
-                    logger.debug('File checksum matches stored checksum: {0}'
-                                 .format(f.path))
+                #     logger.debug('File checksum matches stored checksum: {0}'
+                #                  .format(f.path))
+                    pass
                 else:
-                    logger.warning('File checksum differs from stored '
-                                   'checksum: {0}'.format(f.path))
-                    logger.warning('File {0} last modified: {1}'
-                                   .format(f.path, f.mtime))
+                    # logger.warning('File checksum differs from stored '
+                    #                'checksum: {0}'.format(f.path))
+                    # logger.warning('File {0} last modified: {1}'
+                    #                .format(f.path, f.mtime))
                     checksums[file_name] = f.checksum
-                    logger.warning('Formatted new checksum for checksum file: '
-                                   '{0}'.format(f.path))
+                    # logger.warning('Formatted new checksum for checksum
+                    # file: '
+                     #              '{0}'.format(f.path))
             else:
-                logger.info('File checksum not stored in checksum file: {0}'
-                            .format(f.path))
+                # logger.info('File checksum not stored in checksum file: {0}'
+                #             .format(f.path))
                 checksums[file_name] = f.checksum
-                logger.info('File checksum formatted for checksum file: {0}'
-                            .format(f.path))
+                # logger.info('File checksum formatted for checksum file: {0}'
+                #             .format(f.path))
     else:
 
-        logger.debug('Could not find checksum file in directory: {0}'
-                     .format(d.path))
+        # logger.debug('Could not find checksum file in directory: {0}'
+        #              .format(d.path))
 
-        logger.info('Formatting file checksums for directory: {0}'
-                    .format(d.path))
+        # logger.info('Formatting file checksums for directory: {0}'
+        #             .format(d.path))
 
         for f in d.files:
 
@@ -257,14 +259,14 @@ def analyze_checksums(d, hasher, logger):
             try:
                 assert os.path.isfile(f.path) is True
             except AssertionError:
-                logger.warning('File no longer exists: {0}'.format(f.path))
-                logger.warning('Skipping file checksum formatting: {0}'
-                               .format(f.path))
+            #     logger.warning('File no longer exists: {0}'.format(f.path))
+            #     logger.warning('Skipping file checksum formatting: {0}'
+            #                    .format(f.path))
                 continue
 
             checksums[file_name] = f.checksum
 
-            logger.info('File checksum formatted: {0}'.format(f.path))
+            # logger.info('File checksum formatted: {0}'.format(f.path))
 
     # Write checksum file
     try:
@@ -273,8 +275,9 @@ def analyze_checksums(d, hasher, logger):
                 output = key + '  ' + value + os.linesep
                 checksum_handle.write(output)
     except IOError:
-        logger.error('Cannot write checksum file: {0}'
-                     .format(checksum_file_path))
+        # logger.error('Cannot write checksum file: {0}'
+        #              .format(checksum_file_path))
+        pass
 
     return None
 
@@ -284,13 +287,13 @@ def analyze_checksums_caller(argument):
 
     Args:
          argument (tuple): tuple containing Directory class as first member and
-                           Logger class as second member
+                           the hasher to use as the second
 
     Returns:
         None: simply return something to sate Pool.map
     """
 
-    return analyze_checksums(argument[0], argument[1], argument[2])
+    return analyze_checksums(argument[0], argument[1])
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -309,54 +312,62 @@ def checksum_calculator(queue, hasher, hash_from, logger):
     """
 
     # Loop until queue contains kill message
-    while True:
-        f = queue.get()
+    loop = True
+    while loop:
 
-        logger.debug('Daemon received file: {0}'.format(f.path))
+        files = queue.get()
 
-        # Break on kill message
-        if f == 'DONE':
-            logger.debug('Daemon received kill signal: exiting')
-            break
+        for f in files:
 
-        try:
-            assert os.path.isfile(f.path) is True
-        except AssertionError:
-            logger.warning('File no longer exists: {0}'.format(f.path))
-            logger.warning('Skipping checksum calculation: {0}'.format(f.path))
-            continue
+            # Break on kill message
+            if f == 'DONE':
+                logger.debug('Daemon received kill signal: exiting')
+                loop = False
+                break
 
-        try:
-            assert os.access(f.path, os.R_OK) is True
-        except AssertionError:
-            logger.warning('Cannot read file: {0}'.format(f.path))
-            logger.warning('Skipping checksum calculation: {0}'.format(f.path))
-            continue
+            logger.debug('Daemon received file: {0}'.format(f.path))
 
-        logger.debug('Calculating checksum: {0}'.format(f.path))
+            try:
+                assert os.path.isfile(f.path) is True
+            except AssertionError:
+                logger.warning('File no longer exists: {0}'.format(f.path))
+                logger.warning('Skipping checksum calculation: {0}'.
+                               format(f.path))
+                continue
 
-        try:
-            if hash_from == 'linux':
-                f.checksum = check_output(hasher, f.path).split(' ')[0]
-            elif hash_from == 'python':
-                # Process file contents in memory efficient manner
-                with open(f.path, 'rb') as file_handle:
-                    hexsum = hasher()
-                    while True:
-                        data = file_handle.read(hasher.block_size)
-                        if not data:
-                            break
-                        hexsum.update(data)
-                f.checksum = hexsum.hexdigest()
-        except (KeyboardInterrupt, SystemExit):  # Exit if asked
-            raise
-        except Exception as error:  # Skip calculation on all other errors
-            logger.error('Suppressed error: {0}'.format(error))
-            f.checksum = None
-            logger.error('Reset checksum to None: {0}'.format(f.path))
-            logger.error('Skipping checksum calculation: {0}'.format(f.path))
-        else:
-            logger.debug('Calculated checksum: {0}'.format(f.path))
+            try:
+                assert os.access(f.path, os.R_OK) is True
+            except AssertionError:
+                logger.warning('Cannot read file: {0}'.format(f.path))
+                logger.warning('Skipping checksum calculation: {0}'.
+                               format(f.path))
+                continue
+
+            logger.debug('Calculating checksum: {0}'.format(f.path))
+
+            try:
+                if hash_from == 'linux':
+                    f.checksum = check_output(hasher, f.path).split(' ')[0]
+                elif hash_from == 'python':
+                    # Process file contents in memory efficient manner
+                    with open(f.path, 'rb') as file_handle:
+                        hexsum = hasher()
+                        while True:
+                            data = file_handle.read(hasher.block_size)
+                            if not data:
+                                break
+                            hexsum.update(data)
+                    f.checksum = hexsum.hexdigest()
+            except (KeyboardInterrupt, SystemExit):  # Exit if asked
+                raise
+            except Exception as error:  # Skip calculation on all other errors
+                logger.error('Suppressed error: {0}'.format(error))
+                f.checksum = None
+                logger.error('Reset checksum to None: {0}'.format(f.path))
+                logger.error('Skipping checksum calculation: {0}'.
+                             format(f.path))
+            else:
+                logger.debug('Calculated checksum: {0}'.format(f.path))
 
 
 # This method is literally just the Python 3.5.1 which function from the
@@ -458,7 +469,8 @@ def main(args):
     # Log startup information
     logger.info('Starting integrity_audit')
     logger.info('Command: {0}'.format(' '.join(sys.argv)))
-    logger.info('Log Location: {0}'.format(args.log))
+    logger.info('Top Directory: {0}'.format(os.path.abspath(args.directory)))
+    logger.info('Log Location: {0}'.format(os.path.abspath(args.log)))
     logger.info('Threads: {0}'.format(str(args.threads)))
 
     # Relate hashing algorithm arg to function for downstream use
@@ -493,10 +505,10 @@ def main(args):
     queue = Queue()
     processes = []
     if use_sum is True:
-        hasher = hash_functions[args.algorithm]
+        hasher = sum_cmd
         hash_from = 'linux'
     else:
-        hasher = sum_cmd
+        hasher = hash_functions[args.algorithm]
         hash_from = 'python'
 
     logger.debug('Initializing daemon subprocesses')
@@ -511,14 +523,14 @@ def main(args):
     logger.debug('Initialized {0} daemons'.format(str(len(processes))))
 
     logger.info('Analyzing file structure from {0} downward'
-                .format(args.directory))
+                .format(os.path.abspath(args.directory)))
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
     args.recursive = True if args.max_depth > 0 else False  # -m implies -r
     for root, dir_names, file_names in os.walk(args.directory):
 
-        norm_root = os.path.normpath(root)
+        norm_root = os.path.abspath(os.path.normpath(root))
 
         logger.debug('Found directory: {0}'.format(norm_root))
 
@@ -560,7 +572,7 @@ def main(args):
 
         # Skip hidden directories unless specified
         if args.hidden is False:
-            parts = root.split(os.path.sep)
+            parts = norm_root.split(os.path.sep)[1:]
             for part in parts:
                 if part[0] == '.':
                     logger.debug('Directory is hidden: {0}'.format(norm_root))
@@ -585,6 +597,7 @@ def main(args):
                 logger.debug('File exists: {0}'.format(file_path))
 
             # Skip unreadable files
+            # Skip unreadable files
             try:
                 assert os.access(file_path, os.R_OK) is True
             except AssertionError:
@@ -606,8 +619,6 @@ def main(args):
                     logger.debug('Skipping file: {0}'.format(file_path))
                     continue
 
-            logger.debug('Initializing class for {0}'.format(file_path))
-
             # Initiate File class and store attributes
             file_class = File(file_path)
             file_class.mtime = os.path.getmtime(file_path)
@@ -619,8 +630,6 @@ def main(args):
             queue.put(file_classes)
 
             logger.debug('Class placed in processing queue')
-
-        logger.debug('Initializing class for {0}'.format(norm_root))
 
         # Initialize Directory and pass File handles
         directory = Directory(norm_root, file_classes)
@@ -639,7 +648,7 @@ def main(args):
 
     # Send a kill message to each thread via queue
     for i in processes:
-        queue.put('DONE')
+        queue.put(['DONE'])
 
     logger.debug('Waiting for daemons to complete')
 
@@ -663,14 +672,16 @@ def main(args):
 
     logger.debug('Giving files to pool for checksum comparisons')
 
+    print([i for i in izip(dirs, repeat(args.algorithm))])
+
     # Following izip trick permits use of multiple arguments in conjunction
     # with Pool.map in Python 2.7+.
     # Credit: J.F. Sebastion
     # Site: https://stackoverflow.com/questions/5442910/
     # python-multiprocessing-pool-map-for-multiple-arguments
-    pool.map(analyze_checksums_caller, izip(dirs,
-                                            repeat(args.algorithm),
-                                            repeat(logger)))
+    pool.map(analyze_checksums_caller, izip(dirs, repeat(args.algorithm)))
+
+    # TODO: Change Pool to manual daemons
 
     logger.debug('Closing pool to further input')
 

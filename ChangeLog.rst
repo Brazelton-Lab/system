@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added ThreadCheck to integrity_audit. [TheOneHyer]
+
+  integrity_audit now implements the old function thread_check
+  as the class ThreadCheck. ThreadCheck functions properly.
+
 - ITentatively Finished integrity_audit. [TheOneHyer]
 
   integrity_audit is complete less testing. Writes checksum files.
