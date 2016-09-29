@@ -15,8 +15,6 @@ import logging
 from multiprocessing import cpu_count, Process, Queue
 from multiprocessing.managers import BaseManager
 import os
-from random import SystemRandom
-import string
 from subprocess import check_output
 import sys
 from time import time
@@ -27,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a23'
+__version__ = '0.0.1a24'
 
 
 class Directory:
@@ -523,12 +521,8 @@ def main(args):
                     .format(args.algorithm))
 
     # Create multiprocess manager to handle classes
-    passwd = ''.join(SystemRandom().choice(string.ascii_letters
-                                           + string.digits) for i in range(99))
-    passwd = passwd.encode('utf-8')
     BaseManager.register('Directory', Directory)
     BaseManager.register('File', File)
-    #manager = BaseManager(address=('127.0.0.1', 6666), authkey=passwd)
     manager = BaseManager()
     manager.start()
     queue = Queue()

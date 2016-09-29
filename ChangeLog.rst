@@ -4,6 +4,13 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added BaseManager to integrity_audit. [TheOneHyer]
+
+  This is a very large commit changing how data is passed
+  between the processes to ensure checksums are
+  analyzed properly. integrity_audit fully functional
+  for *nix sums.
+
 - Added TODO to integrity_audit. [TheOneHyer]
 
   Added TODO about making Multiprocessing Managers
