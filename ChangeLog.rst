@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Removed Excess Code. [TheOneHyer]
+
+  Removed unnecessary code in integrity_audit leftover from
+  last commit.
+
 - Added BaseManager to integrity_audit. [TheOneHyer]
 
   This is a very large commit changing how data is passed

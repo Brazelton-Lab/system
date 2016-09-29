@@ -17,7 +17,7 @@ from multiprocessing.managers import BaseManager
 import os
 from subprocess import check_output
 import sys
-from time import time
+from time import localtime, strftime, time
 
 __author__ = 'Alex Hyer'
 __credits__ = 'Christopher Thornton'
@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a24'
+__version__ = '0.0.1a25'
 
 
 class Directory:
@@ -272,8 +272,10 @@ def analyze_checksums(queue, hasher, logger):
                     else:
                         logger.warning('File checksum differs from stored '
                                        'checksum: {0}'.format(f.path()))
+                        local_time = strftime('%Y-%m-%d %H:%M:%S',
+                                              localtime(f.mtime()))
                         logger.warning('File {0} last modified: {1}'
-                                       .format(f.path(), f.mtime()))
+                                       .format(f.path(), local_time))
                         checksums[file_name] = f.checksum()
                         logger.warning('Formatted new checksum for '
                                        'checksum file: {0}'.format(f.path()))
@@ -728,8 +730,8 @@ def main(args):
     total_size = float(sum([d.size() for d in dirs])) / 1073741824.0
     total_time = (end - start) / 60.0
 
-    logger.info('Analyzed {0} GB of data in {1} minutes'
-                .format(str(total_size), total_time))
+    logger.info('Analyzed {0:.2e} GB of data in {1:.2e} minutes'
+                .format(total_size, total_time))
 
     logger.info('Exiting integrity_audit')
 
