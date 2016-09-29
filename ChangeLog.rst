@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added TODO to integrity_audit. [TheOneHyer]
+
+  Began bug testing integrity_audit. Added TODO to change
+  Pool call for analyzing checksums to manual daemons.
+
 - Added ThreadCheck to integrity_audit. [TheOneHyer]
 
   integrity_audit now implements the old function thread_check
