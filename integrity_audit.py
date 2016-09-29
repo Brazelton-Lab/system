@@ -24,7 +24,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.0.1a21'
+__version__ = '0.0.1a22'
 
 
 class Directory:
@@ -149,6 +149,9 @@ class ThreadCheck(argparse.Action):
                              .format(str(cpu_count())))
 
         setattr(namespace, self.dest, threads)
+
+
+# TODO: Add Multiprocessing Manager
 
 
 def analyze_checksums(queue, hasher, logger):
@@ -611,6 +614,8 @@ def main(args):
             file_class.mtime = os.path.getmtime(file_path)
             file_class.size = os.path.getsize(file_path)
             file_classes.append(file_class)
+
+            print(file_class)
 
             logger.debug('Initialized class for file: {0}'.format(file_path))
 

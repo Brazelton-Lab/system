@@ -4,6 +4,13 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Reorganized Multiprocessing in integrity_audit. [TheOneHyer]
+
+  integrity_audit now handles all multiprocessing via
+  manual daemons. Several bug fixes to ensure
+  proper files get analyzed. Standing bug where checksums
+  not being written to checksum file.
+
 - Added TODO to integrity_audit. [TheOneHyer]
 
   Began bug testing integrity_audit. Added TODO to change
