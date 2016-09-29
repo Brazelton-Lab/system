@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Improved integrity_audit Logs. [TheOneHyer]
+
+  integrity_audit log messages involving times and sizes
+  now print in a "pretty" human-readable format.
+
 - Removed Excess Code. [TheOneHyer]
 
   Removed unnecessary code in integrity_audit leftover from
