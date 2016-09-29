@@ -4,6 +4,11 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Added TODO to integrity_audit. [TheOneHyer]
+
+  Added TODO about making Multiprocessing Managers
+  for handling shared classes.
+
 - Reorganized Multiprocessing in integrity_audit. [TheOneHyer]
 
   integrity_audit now handles all multiprocessing via
