@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 
 class Directory:
@@ -554,13 +554,20 @@ def main(args):
 
     logger.debug('Initialized {0} daemons'.format(str(len(processes))))
 
+    abs_dir = os.path.abspath(args.directory)
+
     logger.info('Analyzing file structure from {0} downward'
-                .format(os.path.abspath(args.directory)))
+                .format(abs_dir))
+
+    # Adjust max_depth to correct for starting directory
+    max_depth = -1
+    if args.max_depth > 0:
+        args.recursive = True  # -m implies -r
+        max_depth = args.max_depth + abs_dir.count(os.path.sep)
+        logger.info('Max Absolute Directory Depth: {0}'.format(str(max_depth)))
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
-    if args.max_depth > 0:  # -m implies -r
-        args.recursive = True
     for root, dir_names, file_names in os.walk(args.directory):
 
         norm_root = os.path.abspath(os.path.normpath(root))
@@ -597,9 +604,9 @@ def main(args):
             logger.debug('Can write to directory: {0}'.format(norm_root))
 
         # If directory beyond max depth, skip rest of loop
-        if norm_root.count(os.path.sep) > args.max_depth > -1:
+        if norm_root.count(os.path.sep) > max_depth > -1:
             logger.debug('Directory is {0} directories deep: {1}'
-                         .format(str(norm_root.count(os.path.sep))), norm_root)
+                         .format(str(norm_root.count(os.path.sep)), norm_root))
             logger.debug('Skipping directory: {0}'.format(norm_root))
             continue
 
