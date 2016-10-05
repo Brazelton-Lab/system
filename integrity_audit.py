@@ -1,12 +1,29 @@
 #! /usr/bin/env python
 
-from __future__ import division
-from __future__ import print_function
-
 """Verify data integrity via checksums
 
+Copyright:
 
+    derive_pathway+steps.py Obtain gene list from pathway databases
+    Copyright (C) 2016  William Brazelton, Alex Hyer, Christopher Thornton
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 from glob import iglob
@@ -25,10 +42,10 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.1.2'
+__version__ = '0.2.0a1'
 
 
-class Directory:
+class Directory(object):
     """A simple class to wrap and perform functions on files in a directory
 
     The methods of this class just access the attributes so as to work
@@ -66,7 +83,20 @@ class Directory:
         return size
 
 
-class File:
+class RsyncExclude(object):
+    """
+
+    """
+
+    def __init__(self):
+        """
+
+        """
+
+        pass
+
+
+class File(object):
     """A simple class to store file locations, checksums, mtimes, and sizes
 
     While the data stored in this class is accessible, and often initially
@@ -182,7 +212,7 @@ class ThreadCheck(argparse.Action):
 
 
 def analyze_checksums(queue, hasher, logger):
-    """Probes d for checksum file and compares computed file checksums
+    """Probes directory for checksum file and compares computed file checksums
 
     Args:
          queue (Queue): multiprocessing Queue class containing Directory
@@ -509,20 +539,20 @@ def main(args):
         'sha512': hashlib.sha512
     }
 
-    logger.info('Checking for *nix program: {0}'.format(args.algorithm +
-                                                        'sum'))
+    logger.info('Checking for GNU program: {0}'.format(args.algorithm +
+                                                       'sum'))
 
-    # In-house tests show that, predictably, Linux *sum commands are much
-    # faster than Python's built-in hashlib. Use *sum commands when available.
-    # The presence or absence of a sum command greatly influences program flow.
+    # In-house tests show that, predictably, Linux GNU commands are much
+    # faster than Python's built-in hashlib. Use GNU commands when available.
+    # The presence or absence of a sum command influences program flow.
     sum_cmd = which(args.algorithm + 'sum')
     use_sum = True if sum_cmd is not None else False  # Mostly for readability
 
     if use_sum is True:
-        logger.info('Found *nix program: {0}'.format(sum_cmd))
-        logger.info('Computing checksums *nix program: {0}'.format(sum_cmd))
+        logger.info('Found GNU program: {0}'.format(sum_cmd))
+        logger.info('Computing checksums w/ GNU program: {0}'.format(sum_cmd))
     else:
-        logger.info('Could not find *nix program: {0}'
+        logger.info('Could not find GNU program: {0}'
                     .format(args.algorithm + 'sum'))
         logger.info('Computing checksums with Python hashing function: {0}'
                     .format(args.algorithm))
@@ -532,7 +562,7 @@ def main(args):
     BaseManager.register('File', File)
     manager = BaseManager()
     manager.start()
-    queue = Queue(args.threads)
+    queue = Queue(args.threads)  # Max queue prevents race condition
 
     # Variables for use with processing threads
     if use_sum is True:
@@ -568,7 +598,7 @@ def main(args):
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
-    for root, dir_names, file_names in os.walk(args.directory):
+    for root, dir_names, file_names in os.walk(abs_dir):
 
         norm_root = os.path.abspath(os.path.normpath(root))
 
@@ -583,6 +613,14 @@ def main(args):
             continue
         else:
             logger.debug('Directory exists: {0}'.format(norm_root))
+
+        # If directory beyond max depth, skip rest of loop
+        if norm_root.count(os.path.sep) > max_depth > -1:
+            logger.debug('Directory is {0} directories deep: {1}'
+                         .format(str(norm_root.count(os.path.sep)),
+                                 norm_root))
+            logger.debug('Skipping directory: {0}'.format(norm_root))
+            continue
 
         # Skip unreadable directories
         try:
@@ -602,13 +640,6 @@ def main(args):
             logger.warning('Will attempt to analyze checksums of file anyway')
         else:
             logger.debug('Can write to directory: {0}'.format(norm_root))
-
-        # If directory beyond max depth, skip rest of loop
-        if norm_root.count(os.path.sep) > max_depth > -1:
-            logger.debug('Directory is {0} directories deep: {1}'
-                         .format(str(norm_root.count(os.path.sep)), norm_root))
-            logger.debug('Skipping directory: {0}'.format(norm_root))
-            continue
 
         # Skip hidden directories unless specified
         if args.hidden is False:
@@ -646,7 +677,7 @@ def main(args):
             else:
                 logger.debug('Can read file: {0}'.format(file_path))
 
-            # Skip hidden files
+            # Skip hidden files unless specified
             if args.hidden is False and file_name[0] == '.':
                 logger.debug('{0} is hidden: skipping'.format(file_path))
                 continue
@@ -654,7 +685,7 @@ def main(args):
             # Skip checksum files
             if file_name in ([key + 'sums' for key in hash_functions.keys()]):
                 logger.debug('Checksum file found: {0}'.format(file_path))
-                logger.debug('Skipping file: {0}'.format(file_path))
+                logger.debug('Skipping checksum file: {0}'.format(file_path))
                 continue
 
             # Initiate File class and store attributes
@@ -705,7 +736,7 @@ def main(args):
     logger.debug('Initializing daemon subprocesses')
 
     # Initialize daemons to compare checksums
-    queue2 = Queue(args.threads)
+    queue2 = Queue(args.threads)  # Max queue prevents race condition
     processes2 = []
     for i in range(args.threads):
         processes2.append(Process(target=analyze_checksums,
@@ -765,14 +796,14 @@ if __name__ == '__main__':
                                  'sha384',
                                  'sha512'],
                         help='algorithm used to perform checksums')
-    parser.add_argument('-l', '--log',
-                        type=str,
-                        default='syslog',
-                        help='log file to write output')
     parser.add_argument('-d', '--hidden',
                         action='store_true',
                         help='check files in hidden directories and hidden '
                              'files')
+    parser.add_argument('-l', '--log',
+                        type=str,
+                        default='syslog',
+                        help='log file to write output')
     parser.add_argument('-r', '--recursive',
                         action='store_true',
                         help='check files in all subdirectories')
