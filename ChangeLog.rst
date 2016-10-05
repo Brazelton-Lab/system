@@ -4,6 +4,21 @@ Changelog
 %%version%% (unreleased)
 ------------------------
 
+- Corrected max_depth Arg in integrity_audit. [TheOneHyer]
+
+  integrity_audit now correctly recurses proper number
+  of directories.
+
+- Race Condition in integrity_audit. [TheOneHyer]
+
+  Fixed queue size in integrity_audit since it was racing
+  itself for semaphores.
+
+- Upped integrity_audit version. [TheOneHyer]
+
+  Since integrity_audit is now functional, it's versioning has
+  been upgraded and its status is "Production."
+
 - Improved integrity_audit Logs. [TheOneHyer]
 
   integrity_audit log messages involving times and sizes
