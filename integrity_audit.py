@@ -25,7 +25,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 class Directory:
@@ -203,6 +203,8 @@ def analyze_checksums(queue, hasher, logger):
             logger.debug('Daemon received kill signal: exiting')
             break
 
+        logger.debug('Daemon received directory: {0}'.format(d.path()))
+
         logger.debug('Comparing checksums for files in directory: {0}'
                      .format(d.path()))
 
@@ -341,12 +343,15 @@ def checksum_calculator(queue, hasher, hash_from, logger):
     # Loop until queue contains kill message
     while True:
 
+
         f = queue.get()
 
         # Break on kill message
         if f == 'DONE':
             logger.debug('Daemon received kill signal: exiting')
             break
+
+        logger.debug('Daemon received file: {0}'.format(f.path()))
 
         try:
             assert os.path.isfile(f.path()) is True
@@ -527,7 +532,7 @@ def main(args):
     BaseManager.register('File', File)
     manager = BaseManager()
     manager.start()
-    queue = Queue()
+    queue = Queue(args.threads)
 
     # Variables for use with processing threads
     if use_sum is True:
@@ -554,7 +559,8 @@ def main(args):
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
-    args.recursive = True if args.max_depth > 0 else False  # -m implies -r
+    if args.max_depth > 0:  # -m implies -r
+        args.recursive = True
     for root, dir_names, file_names in os.walk(args.directory):
 
         norm_root = os.path.abspath(os.path.normpath(root))
@@ -645,7 +651,6 @@ def main(args):
                 continue
 
             # Initiate File class and store attributes
-            # file_class = manager.File(file_path)
             mtime = os.path.getmtime(file_path)
             size = os.path.getsize(file_path)
             file_class = manager.File(file_path, mtime, size)
@@ -693,7 +698,7 @@ def main(args):
     logger.debug('Initializing daemon subprocesses')
 
     # Initialize daemons to compare checksums
-    queue2 = Queue()
+    queue2 = Queue(args.threads)
     processes2 = []
     for i in range(args.threads):
         processes2.append(Process(target=analyze_checksums,
