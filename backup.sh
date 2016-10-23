@@ -95,7 +95,7 @@ fi
 source_dir="${@:$OPTIND:1}";
 dest_dir="${@:$OPTIND+1:1}";
 
-start_time=$(date +"%Y%m%d%H%M.%S")
+start_time=$(date +"%Y%m%d%H%M")
 
 # verify that the log file exists and is writable
 if [ ! -z "$LOG" ]; then
