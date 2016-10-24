@@ -95,7 +95,7 @@ fi
 source_dir="${@:$OPTIND:1}";
 dest_dir="${@:$OPTIND+1:1}";
 
-start_time=$(date +"%Y%m%d%H%M")
+start_time=$(date +"%Y%m%d%H%M.%S")
 
 # verify that the log file exists and is writable
 if [ ! -z "$LOG" ]; then
@@ -208,7 +208,7 @@ fi
 sync_err=$(rsync "${RSYNCOPTS[@]}" ${source_dir} ${backup_dest} 2>&1 >/dev/null);
 
 # modify the timestamp to reflect the date and time of the backup
-update_time=$(/usr/bin/ssh -q -p $PORT $RHOST touch --date="$start_time" ${backup_dest});
+update_time=$(/usr/bin/ssh -q -p $PORT $RHOST touch -t="$start_time" ${backup_dest});
 
 # remove snapshot if it exists
 if [ ! -z $snapshot ]; then
