@@ -95,6 +95,8 @@ fi
 source_dir="${@:$OPTIND:1}";
 dest_dir="${@:$OPTIND+1:1}";
 
+start_time=$(date +"%Y%m%d%H%M.%S")
+
 # verify that the log file exists and is writable
 if [ ! -z "$LOG" ]; then
     if [ ! -e "$LOG" ]; then
@@ -104,7 +106,7 @@ if [ ! -z "$LOG" ]; then
         fi
     else
         if [ ! -w "$LOG" ]; then
-            echo "error: unable to write to log";
+            echo "error: unable to write to log file $LOG";
             exit 1
         fi
     fi
@@ -118,7 +120,7 @@ if [[ ( -z "$VOLGROUP"  && ! -z "$LOGVOL" ) || ( -z "$LOGVOL" && ! -z "$VOLGROUP
     exit 1
 fi
 
-# Set the destination
+# set the destination
 destination="$dest_dir/$(date -I)";
 
 # obtain destination link
@@ -138,11 +140,11 @@ fi
 
 # verify that destination is not also the link (in case backup occurs twice in one day)
 if [ $destination == $link ]; then
-    write_log "error: destination directory $destination already exists on remote machine. Please delete";
+    write_log "error: destination directory $destination already exists on the remote machine";
     exit 1
 fi
 
-# If requested, create the snapshot and mount it at the source directory
+# if requested, create the snapshot and mount it at the source directory
 if [ ! -z "${LOGVOL}" ]; then
     snapname="${LOGVOL}_snap";
     snapshot="/dev/${VOLGROUP}/${snapname}";
@@ -185,7 +187,7 @@ else
     fi
 fi
 
-# Set rsync arguments
+# set rsync arguments
 RSYNCOPTS=(-azAX --no-o --no-g --delete ${link_dest});
 if [ ! -z $EXCLUDES ]; then
     RSYNCOPTS+=(--exclude-from=${EXCLUDES});
@@ -204,15 +206,15 @@ fi
 
 # backup data
 sync_err=$(rsync "${RSYNCOPTS[@]}" ${source_dir} ${backup_dest} 2>&1 >/dev/null);
-#print_statement="rsync ${RSYNCOPTS[@]} ${source_dir} ${backup_dest}";
-#echo $print_statement;
-#echo
 
 # remove snapshot if it exists
 if [ ! -z $snapshot ]; then
     umount -f ${source_dir};
     remove_snapshot ${snapshot};
 fi
+
+# modify the timestamp to reflect the date and time of the backup
+update_time=$(/usr/bin/ssh -q -p $PORT $RHOST touch -t "$start_time" ${backup_dest});
 
 write_log "backup finished";
 
