@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a3'
+__version__ = '0.2.0a4'
 
 
 class Directory(object):
@@ -184,13 +184,14 @@ class RsyncExclude(object):
 
             # Replace '**' with greedy capture
             # rsync: '**' behaves as '*' but not stopped by path.sep
-            exclusion = re.sub(r'\*\*', r'.*', exclusion)
+            exclusion = re.sub(r'\*\*', r'[^{0}]*'.format(os.path.sep),
+                               exclusion)
 
             # Replace unescaped '?' with any single character but slash
             # uc matches '?' not preceded by '\' or '.*'
             # rsync: '?' matches any non-path.sep character
             uc = re.compile(r'(?<!\\)(?<!\.\*)\?')
-            exclusion = re.sub(uc, r'[^{0}]+'.format(os.path.sep), exclusion)
+            exclusion = re.sub(uc, r'[^{0}]?'.format(os.path.sep), exclusion)
 
             """Notes on other rsync standards:
 
