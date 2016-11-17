@@ -32,6 +32,7 @@ import logging
 from multiprocessing import cpu_count, Process, Queue
 from multiprocessing.managers import BaseManager
 import os
+import re
 from subprocess import check_output
 import sys
 from time import localtime, strftime, time
@@ -83,19 +84,6 @@ class Directory(object):
         return size
 
 
-class RsyncExclude(object):
-    """
-
-    """
-
-    def __init__(self):
-        """
-
-        """
-
-        pass
-
-
 class File(object):
     """A simple class to store file locations, checksums, mtimes, and sizes
 
@@ -140,6 +128,87 @@ class File(object):
 
     def size(self):
         return self._size
+
+
+class RsyncExclude(object):
+    """Class to generate, store, and match rsync-style system path exclusions
+
+    Attributes:
+        exclusions (list): list of unicodes of regexs and paths to exclude
+
+        base (unicode): base directory to stem exclusions from
+    """
+
+    def __init__(self, exclusions, base='/'):
+        """Initialize instance and generate exclusions
+
+        """
+
+        self.exclusions = self.generate_exclusions(base, exclusions)
+        self.base = base
+
+    @staticmethod
+    def generate_exclusions(base, exclusions):
+        """Generate regexes to match exclusion patterns based on rsync
+
+        Args:
+            base (unicode): starting path
+
+            exclusions (list): list of unicodes containing paths to ignore
+
+        Returns:
+            list: list of compiled regex matching paths to exclude
+        """
+
+        regexes = []
+
+        # Generate exclusions
+        for exclusion in exclusions:
+
+            exclusion = exclusion.encode('unicode-escape')
+
+            # Anchor exclusion to base if stars with path.sep
+            # rsync: path.sep anchored to top path
+            if exclusion[0] == os.path.sep:
+                exclusion = '^' + base + exclusion
+
+            # Anchor exclusion to end of path if nothing captures path.sep
+            # rsync: if no path.sep (less last char) or '**', match end of path
+            temp = re.sub(os.path.sep + '$', '', exclusion)
+            if '**' not in temp and os.path.sep not in temp:
+                exclusion += '$'
+
+            # Replace unescaped wildcards with non-greedy capture
+            # uw matches '*' not flanked by other '*' or preceded by '/'
+            # rsync: unescaped '*' matches everything but stopped by path.sep
+            uw = re.compile(r'(?<!\\)(?<!\*)\*(?!\*)')
+            exclusion = re.sub(uw, r'.*?', exclusion)
+
+            # Replace '**' with greedy capture
+            # rsync: '**' behaves as '*' but not stopped by path.sep
+            exclusion = re.sub(r'\*\*', r'.*', exclusion)
+
+            # Replace unescaped '?' with any single character but slash
+            # uc matches '?' not preceded by '\' or '.*'
+            # rsync: '?' matches any non-path.sep character
+            uc = re.compile(r'(?<!\\)(?<!\.\*)\?')
+            exclusion = re.sub(uc, r'[^{0}]+'.format(os.path.sep), exclusion)
+
+            """Notes on other rsync standards:
+
+            rsync: brackets match character class
+            Status: Python matches character classes already when re
+            compiles them. As such, no need to explicitly address this
+            standard.
+
+            rsync: trailing path.sep only matches directories and nothing else
+            Status: this cannot be caught in a regex as the regex can only
+            catch patterns. This is implemented in the exclude function.
+            """
+
+            regexes.append(re.compile(exclusion))
+
+        return regexes
 
 
 class ThreadCheck(argparse.Action):
