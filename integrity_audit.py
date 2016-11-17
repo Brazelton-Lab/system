@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a1'
+__version__ = '0.2.0a3'
 
 
 class Directory(object):
@@ -139,10 +139,8 @@ class RsyncExclude(object):
         base (unicode): base directory to stem exclusions from
     """
 
-    def __init__(self, exclusions, base='/'):
-        """Initialize instance and generate exclusions
-
-        """
+    def __init__(self, exclusions, base=os.path.sep):
+        """Initialize instance and generate exclusions"""
 
         self.exclusions = self.generate_exclusions(base, exclusions)
         self.base = base
@@ -156,7 +154,7 @@ class RsyncExclude(object):
 
             exclusions (list): list of unicodes containing paths to ignore
 
-        Returns:
+        Return:
             list: list of compiled regex matching paths to exclude
         """
 
@@ -209,6 +207,31 @@ class RsyncExclude(object):
             regexes.append(re.compile(exclusion))
 
         return regexes
+
+    def exclude(self, path):
+        """Test if path is excluded
+
+        Args:
+            path (unicode): path to test
+
+        Return:
+            bool: True if path matches an exclusion, else False
+        """
+
+        for exclusion in self.exclusions:
+
+            # Skip directory-only regex is path not directory
+            # rsync: trailing path.sep only matches directories
+            if exclusion.pattern[-1] == os.path.sep:
+                if os.path.isdir(path) is False:
+                    continue
+
+            match = exclusion.search(path)
+
+            if match is not None:
+                return True
+
+        return False
 
 
 class ThreadCheck(argparse.Action):
