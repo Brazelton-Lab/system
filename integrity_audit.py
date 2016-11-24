@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a4'
+__version__ = '0.2.0a5'
 
 
 class Directory(object):
@@ -143,7 +143,7 @@ class RsyncExclude(object):
         """Initialize instance and generate exclusions"""
 
         self.exclusions = self.generate_exclusions(base, exclusions)
-        self.base = base
+        self.base = re.sub(os.path.sep + '$', '', base)
 
     @staticmethod
     def generate_exclusions(base, exclusions):
@@ -166,11 +166,17 @@ class RsyncExclude(object):
             exclusion = exclusion.encode('unicode-escape')
 
             # Anchor exclusion to base if stars with path.sep
-            # rsync: path.sep anchored to top path
+            # This regex only adds the exclusion to the beginning of the
+            # path as the base is removed in exclude().
+            # rsync: leading path.sep anchors to start of path
+            # rsync: trailing path.sep not anchored to end
+            # rsync: all else anchored to end of path
             if exclusion[0] == os.path.sep:
-                exclusion = '^' + base + exclusion
+                exclusion = '^' + exclusion
+            elif exclusion[-1] != os.path.sep:
+                exclusion += '$'
 
-            # Anchor exclusion to end of path if nothing captures path.sep
+            # Anchor exclusion to end of path if nothing captures path.sep.
             # rsync: if no path.sep (less last char) or '**', match end of path
             temp = re.sub(os.path.sep + '$', '', exclusion)
             if '**' not in temp and os.path.sep not in temp:
@@ -180,14 +186,13 @@ class RsyncExclude(object):
             # uw matches '*' not flanked by other '*' or preceded by '/'
             # rsync: unescaped '*' matches everything but stopped by path.sep
             uw = re.compile(r'(?<!\\)(?<!\*)\*(?!\*)')
-            exclusion = re.sub(uw, r'.*?', exclusion)
+            exclusion = re.sub(uw, r'[^{0}]*'.format(os.path.sep), exclusion)
 
             # Replace '**' with greedy capture
             # rsync: '**' behaves as '*' but not stopped by path.sep
-            exclusion = re.sub(r'\*\*', r'[^{0}]*'.format(os.path.sep),
-                               exclusion)
+            exclusion = re.sub(r'\*\*', r'.*', exclusion)
 
-            # Replace unescaped '?' with any single character but slash
+            # Replace unescaped '?' with any single character except slash
             # uc matches '?' not preceded by '\' or '.*'
             # rsync: '?' matches any non-path.sep character
             uc = re.compile(r'(?<!\\)(?<!\.\*)\?')
@@ -200,9 +205,8 @@ class RsyncExclude(object):
             compiles them. As such, no need to explicitly address this
             standard.
 
-            rsync: trailing path.sep only matches directories and nothing else
-            Status: this cannot be caught in a regex as the regex can only
-            catch patterns. This is implemented in the exclude function.
+            rsync: trailing path.sep only matches directory
+            # TODO: Add explanation
             """
 
             regexes.append(re.compile(exclusion))
@@ -219,13 +223,10 @@ class RsyncExclude(object):
             bool: True if path matches an exclusion, else False
         """
 
-        for exclusion in self.exclusions:
+        # Remove base to ensure exclusions don't match paths before the base
+        path = re.sub('^' + self.base, '', path)
 
-            # Skip directory-only regex is path not directory
-            # rsync: trailing path.sep only matches directories
-            if exclusion.pattern[-1] == os.path.sep:
-                if os.path.isdir(path) is False:
-                    continue
+        for exclusion in self.exclusions:
 
             match = exclusion.search(path)
 
