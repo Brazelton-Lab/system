@@ -4,7 +4,7 @@
 
 Copyright:
 
-    derive_pathway+steps.py Obtain gene list from pathway databases
+    integrity_audit.py Validate checksums of files
     Copyright (C) 2016  William Brazelton, Alex Hyer, Christopher Thornton
 
     This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a5'
+__version__ = '0.2.0a6'
 
 
 class Directory(object):
@@ -134,7 +134,7 @@ class RsyncExclude(object):
     """Class to generate, store, and match rsync-style system path exclusions
 
     Attributes:
-        exclusions (list): list of unicodes of regexs and paths to exclude
+        exclusions (list): list of unicodes of regexes and paths to exclude
 
         base (unicode): base directory to stem exclusions from
     """
@@ -142,16 +142,14 @@ class RsyncExclude(object):
     def __init__(self, exclusions, base=os.path.sep):
         """Initialize instance and generate exclusions"""
 
-        self.exclusions = self.generate_exclusions(base, exclusions)
+        self.exclusions = self.generate_exclusions(exclusions)
         self.base = re.sub(os.path.sep + '$', '', base)
 
     @staticmethod
-    def generate_exclusions(base, exclusions):
+    def generate_exclusions(exclusions):
         """Generate regexes to match exclusion patterns based on rsync
 
         Args:
-            base (unicode): starting path
-
             exclusions (list): list of unicodes containing paths to ignore
 
         Return:
@@ -160,14 +158,19 @@ class RsyncExclude(object):
 
         regexes = []
 
+        # Change single entry to list format for ease of use
+        if type(exclusions) is unicode:
+            exclusions = [exclusions]
+
         # Generate exclusions
         for exclusion in exclusions:
 
             exclusion = exclusion.encode('unicode-escape')
 
             # Anchor exclusion to base if stars with path.sep
-            # This regex only adds the exclusion to the beginning of the
-            # path as the base is removed in exclude().
+            # This regex only anchors the exclusion to the beginning of the
+            # path instead of adding the base to the beginning of the path
+            # as the base is removed in exclude().
             # rsync: leading path.sep anchors to start of path
             # rsync: trailing path.sep not anchored to end
             # rsync: all else anchored to end of path
@@ -178,24 +181,25 @@ class RsyncExclude(object):
 
             # Anchor exclusion to end of path if nothing captures path.sep.
             # rsync: if no path.sep (less last char) or '**', match end of path
-            temp = re.sub(os.path.sep + '$', '', exclusion)
-            if '**' not in temp and os.path.sep not in temp:
+            temp = re.sub(os.path.sep + '\$?$', '', exclusion)
+            if '**' not in temp and os.path.sep not in temp and \
+                    exclusion[-1] != '$':
                 exclusion += '$'
 
-            # Replace unescaped wildcards with non-greedy capture
-            # uw matches '*' not flanked by other '*' or preceded by '/'
+            # Replace unescaped wildcards with non-greedy capture.
+            # uw matches '*' not flanked by other '*' or preceded by '/'.
             # rsync: unescaped '*' matches everything but stopped by path.sep
             uw = re.compile(r'(?<!\\)(?<!\*)\*(?!\*)')
             exclusion = re.sub(uw, r'[^{0}]*'.format(os.path.sep), exclusion)
 
-            # Replace '**' with greedy capture
-            # rsync: '**' behaves as '*' but not stopped by path.sep
+            # Replace '**' with greedy capture.
+            # rsync: '**' behaves as '*' but not stopped by path.sep.
             exclusion = re.sub(r'\*\*', r'.*', exclusion)
 
-            # Replace unescaped '?' with any single character except slash
-            # uc matches '?' not preceded by '\' or '.*'
+            # Replace unescaped '?' with any single character except slash.
+            # uc matches '?' not preceded by '\'.
             # rsync: '?' matches any non-path.sep character
-            uc = re.compile(r'(?<!\\)(?<!\.\*)\?')
+            uc = re.compile(r'(?<!\\)\?')
             exclusion = re.sub(uc, r'[^{0}]?'.format(os.path.sep), exclusion)
 
             """Notes on other rsync standards:
@@ -231,9 +235,36 @@ class RsyncExclude(object):
             match = exclusion.search(path)
 
             if match is not None:
-                return True
+                return True  # Exclude path
 
-        return False
+        return False  # Include path
+
+    def walk(self, path):
+        """Mimic os.walk w/ topdown=True but excludes dirs and files
+
+        Args:
+            path (unicode): top directory to walk from
+
+        Yields:
+            tuple: os.walk tuple mimic. Namely, first item is a unicode of
+                   root directory for current iteration, second item is a list
+                   of directories in root, and third item is a list of files
+                   is root.
+        """
+
+        for root, dir_names, file_names in os.walk(path, topdown=True):
+
+            # Remove excluded directories
+            for dir_ in dir_names:
+                if self.exclude(dir_):
+                    dir_names.remove(dir_)
+
+            # Remove excluded files
+            for file_ in file_names:
+                if self.exclude(file_):
+                    file_names.remove(file_)
+
+            yield root, dir_names, file_names
 
 
 class ThreadCheck(argparse.Action):
@@ -758,6 +789,7 @@ def main(args):
             except AssertionError:
                 logger.warning('File no longer exists: {0}'.format(file_path))
                 logger.warning('Skipping file: {0}'.format(file_path))
+                continue
             else:
                 logger.debug('File exists: {0}'.format(file_path))
 
