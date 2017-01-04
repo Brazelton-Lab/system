@@ -42,7 +42,7 @@ __credits__ = 'Christopher Thornton'
 __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
-__status__ = 'Production'
+__status__ = 'Alpha'
 __version__ = '0.2.0a8'
 
 
@@ -265,6 +265,7 @@ class RsyncExclude(object):
             remove_dir = []
             for _dir in dir_names:
                 m_dir = os.path.join(root, _dir) + os.path.sep
+                m_dir = m_dir[len(path):]  # Remove base from directory
                 if self.exclude(m_dir) is True:
                     remove_dir.append(_dir)
             dir_names[:] = list(set(dir_names) - set(remove_dir))
@@ -273,6 +274,7 @@ class RsyncExclude(object):
             remove_files = []
             for _file in file_names:
                 m_file = os.path.join(root, _file)
+                m_file = m_file[len(path):]  # Remove base from file
                 if self.exclude(m_file) is True:
                     remove_files.append(_file)
             file_names[:] = list(set(file_names) - set(remove_files))
