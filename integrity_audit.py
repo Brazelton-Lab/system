@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Alpha'
-__version__ = '0.2.0a10'
+__version__ = '0.2.0b1'
 
 
 class Directory(object):
@@ -133,7 +133,27 @@ class File(object):
 class RsyncRegexes(object):
     """Class to generate, store, and match rsync-style system path regexes
 
+    This class converts rsync-esque patterns available at:
+
+    https://linux.die.net/man/1/rsync
+
+    into Python regexes and stores them. The instance can then be queried to
+    see if a specific path is to be included or excluded given the stored
+    regexes. A given instance can be in either 'include' mode where a path
+    matching a given regex is to be included, or 'exclude' mode where a path
+    matching a given regex is to be excluded. The exclude() and include()
+    methods evaluate a given path and return whether a given path is to be
+    included or excluded based on the instance's regexes and mode. Perhaps
+    the most useful method in this class if walk(). walk() wraps os.walk
+    and removes excluded files and directories before yielding results.
+    In essence, this class provides a simple interface for converting
+    rsync patterns into python regexes allowing programs to provide users
+    access to the familiarity of rsync patterns in Python programs.
+
     Attributes:
+        mode (unicode): ['include', 'exclude'] determines if a path
+                        matching a pattern should be included or excluded
+
         patterns (list): list of unicodes of rsync-style patterns to match
                          paths against
     """
@@ -158,10 +178,21 @@ class RsyncRegexes(object):
         """Generate regexes to match rsync patterns
 
         Args:
-            patterns (list): list of unicodes containing paths to ignore
+            patterns (list): list of unicodes containing rsync patterns to
+                             convert to Python regexes
 
         Returns:
-            list: list of compiled regex matching paths to match
+            list: list of compiled regexes matching paths to match
+
+        Examples:
+            >>> [i.pattern for i in
+            ...  RsyncRegexes.generate_rsync_regexes(['.git**', 'test/',
+            ...                                       'hello*world.txt'])]
+            ['.git.*', 'test/$', 'hello[^/]*world.txt$']
+
+            >>> [i.pattern for i in
+            ...  RsyncRegexes.generate_rsync_regexes(['?1.csv', '**.py'])]
+            ['[^/]?1.csv$', '.*.py']
         """
 
         regexes = []
@@ -220,11 +251,36 @@ class RsyncRegexes(object):
 
         return regexes
 
-    def exclude(self, path, base=None):
-        """Test if path is excluded
+    def add_patterns(self, patterns):
+        """Add patterns to match to self
+
+        This function is not strictly necessary, but is highly convenient.
 
         Args:
-            path (unicode): path to match against regexes
+             patterns (list): list of unicodes rsync patterns to convert to
+                              Python regexes and add to instance's list of
+                              regexes
+
+        Example:
+            >>> r = RsyncRegexes('exclude', 'hello?world.py')
+            >>> [i.pattern for i in r.regexes]
+            ['hello[^/]?world.py$']
+            >>> r.add_patterns(['goodbye**', 'python?'])
+            >>> [i.pattern for i in r.regexes]
+            ['hello[^/]?world.py$', 'goodbye.*', 'python[^/]?$']
+        """
+
+        # Change single entry to list format for ease of use
+        if type(patterns) is unicode or type(patterns) is str:
+            patterns = [patterns]
+
+        self.regexes += self.generate_rsync_regexes(patterns)
+
+    def exclude(self, path, base=None):
+        """Test if path is excluded as per instance regexes
+
+        Args:
+            path (unicode): path to match against self.regexes
 
             base (unicode): if provided, removes base from beginning of path
                             so regexes can't match base
@@ -233,6 +289,18 @@ class RsyncRegexes(object):
             bool: True if path is to be excluded, else False
                   This function will return the boolean appropriate for the
                   instance's mode (self.mode).
+
+        Examples:
+            >>> r = RsyncRegexes('exclude', 'hello?world.py')
+            >>> r.exclude('hello_world.py')
+            True
+            >>> r.exclude('bye_world.py')
+            False
+            >>> r = RsyncRegexes('include', 'hello?world.py')
+            >>> r.exclude('hello_world.py')
+            False
+            >>> r.exclude('bye_world.py')
+            True
         """
 
         # Determine whether or not a path is an absolute directory
@@ -265,12 +333,37 @@ class RsyncRegexes(object):
         elif self.mode == 'include':
             return True  # Exclude path
 
-    def include(self, path):
+    def include(self, path, base=None):
+        """Test if path is included as per instance regexes
 
-        return not self.exclude(path)
+        Args:
+            path (unicode): path to match against self.regexes
+
+            base (unicode): if provided, removes base from beginning of path
+                            so regexes can't match base
+
+        Returns:
+            bool: True if path is to be included, else False
+                  This function will return the boolean appropriate for the
+                  instance's mode (self.mode).
+
+        Examples:
+            >>> r = RsyncRegexes('exclude', 'hello?world.py')
+            >>> r.include('hello_world.py')
+            False
+            >>> r.include('bye_world.py')
+            True
+            >>> r = RsyncRegexes('include', 'hello?world.py')
+            >>> r.include('hello_world.py')
+            True
+            >>> r.include('bye_world.py')
+            False
+        """
+
+        return not self.exclude(path, base=base)
 
     def walk(self, path, **kwargs):
-        """Mimic os.walk but excludes dirs and files
+        """Mimic os.walk but excludes dirs and files as per instance regexes
 
         Args:
             path (unicode): top directory to walk down from
@@ -281,10 +374,20 @@ class RsyncRegexes(object):
             tuple: os.walk tuple mimic. Namely, first item is a unicode of
                    root directory for current iteration, second item is a list
                    of directories in root, and third item is a list of files
-                   is root.
+                   is root. Only directory and file names not to be excluded
+                   are yielded. Un-yielded directories will not be further
+                   transversed.
+
+        Example:
+            >>> r = RsyncRegexes('include', 'hello?world.py')
+            >>> for root,  dirs, files in r.walk('/path/to/test/dir/'):
+            ...     print(root, dirs, files)
+            ('/', ['dir1', 'dir2'], ['file1', 'file2'])
         """
 
-        base = path
+        # Ensure path ends with path.sep so base can be passed to exclude
+        if path[-1] != os.path.sep:
+            path += os.path.sep
 
         for root, dir_names, file_names in os.walk(path, topdown=True,
                                                    **kwargs):
