@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a7'
+__version__ = '0.2.0a8'
 
 
 class Directory(object):
@@ -258,21 +258,24 @@ class RsyncExclude(object):
                    is root.
         """
 
-        # TODO: Figure out why multiple exclusions doesn't work
         for root, dir_names, file_names in os.walk(path, topdown=True,
                                                    **kwargs):
 
             # Remove excluded directories
+            remove_dir = []
             for _dir in dir_names:
                 m_dir = os.path.join(root, _dir) + os.path.sep
                 if self.exclude(m_dir) is True:
-                    dir_names.remove(_dir)
+                    remove_dir.append(_dir)
+            dir_names[:] = list(set(dir_names) - set(remove_dir))
 
             # Remove excluded files
+            remove_files = []
             for _file in file_names:
                 m_file = os.path.join(root, _file)
                 if self.exclude(m_file) is True:
-                    file_names.remove(_file)
+                    remove_files.append(_file)
+            file_names[:] = list(set(file_names) - set(remove_files))
 
             yield root, dir_names, file_names
 
