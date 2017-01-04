@@ -43,7 +43,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Production'
-__version__ = '0.2.0a6'
+__version__ = '0.2.0a7'
 
 
 class Directory(object):
@@ -134,16 +134,14 @@ class RsyncExclude(object):
     """Class to generate, store, and match rsync-style system path exclusions
 
     Attributes:
-        exclusions (list): list of unicodes of regexes and paths to exclude
-
-        base (unicode): base directory to stem exclusions from
+        exclusions (list): list of unicodes of rsync-style regexes and paths to
+                           exclude
     """
 
-    def __init__(self, exclusions, base=os.path.sep):
+    def __init__(self, exclusions):
         """Initialize instance and generate exclusions"""
 
         self.exclusions = self.generate_exclusions(exclusions)
-        self.base = re.sub(os.path.sep + '$', '', base)
 
     @staticmethod
     def generate_exclusions(exclusions):
@@ -152,14 +150,14 @@ class RsyncExclude(object):
         Args:
             exclusions (list): list of unicodes containing paths to ignore
 
-        Return:
+        Returns:
             list: list of compiled regex matching paths to exclude
         """
 
         regexes = []
 
         # Change single entry to list format for ease of use
-        if type(exclusions) is unicode:
+        if type(exclusions) is unicode or type(exclusions) is str:
             exclusions = [exclusions]
 
         # Generate exclusions
@@ -172,22 +170,20 @@ class RsyncExclude(object):
             # path instead of adding the base to the beginning of the path
             # as the base is removed in exclude().
             # rsync: leading path.sep anchors to start of path
-            # rsync: trailing path.sep not anchored to end
-            # rsync: all else anchored to end of path
             if exclusion[0] == os.path.sep:
                 exclusion = '^' + exclusion
-            elif exclusion[-1] != os.path.sep:
-                exclusion += '$'
 
             # Anchor exclusion to end of path if nothing captures path.sep.
+            # Anchoring trailing path.sep to end of string will work in an
+            # rsync-esque manner because the walk function will not descend
+            # into excluded directories.
             # rsync: if no path.sep (less last char) or '**', match end of path
             temp = re.sub(os.path.sep + '\$?$', '', exclusion)
-            if '**' not in temp and os.path.sep not in temp and \
-                    exclusion[-1] != '$':
+            if '**' not in temp and os.path.sep not in temp:
                 exclusion += '$'
 
             # Replace unescaped wildcards with non-greedy capture.
-            # uw matches '*' not flanked by other '*' or preceded by '/'.
+            # uw matches '*' not flanked by other '*' or preceded by '\'.
             # rsync: unescaped '*' matches everything but stopped by path.sep
             uw = re.compile(r'(?<!\\)(?<!\*)\*(?!\*)')
             exclusion = re.sub(uw, r'[^{0}]*'.format(os.path.sep), exclusion)
@@ -210,8 +206,8 @@ class RsyncExclude(object):
             standard.
 
             rsync: trailing path.sep only matches directory
-            # TODO: Add explanation
             """
+            # TODO: Add explanation
 
             regexes.append(re.compile(exclusion))
 
@@ -221,16 +217,24 @@ class RsyncExclude(object):
         """Test if path is excluded
 
         Args:
-            path (unicode): path to test
+            path (unicode): path to test for exclusion
 
-        Return:
+        Returns:
             bool: True if path matches an exclusion, else False
         """
 
-        # Remove base to ensure exclusions don't match paths before the base
-        path = re.sub('^' + self.base, '', path)
+        # Determine whether or not a path is an absolute directory
+        is_abs_dir = False
+        if os.path.isdir(path) is True and os.path.islink(path) is False:
+            is_abs_dir = True
 
         for exclusion in self.exclusions:
+
+            # If pattern ends in path.sep, only match directories
+            # rsync: patterns ending in path.sep only match non-link dirs
+            temp = re.sub('\$?$', '', exclusion.pattern)
+            if temp[-1] == os.path.sep and is_abs_dir is False:
+                continue
 
             match = exclusion.search(path)
 
@@ -239,11 +243,13 @@ class RsyncExclude(object):
 
         return False  # Include path
 
-    def walk(self, path):
-        """Mimic os.walk w/ topdown=True but excludes dirs and files
+    def walk(self, path, **kwargs):
+        """Mimic os.walk but excludes dirs and files
 
         Args:
-            path (unicode): top directory to walk from
+            path (unicode): top directory to walk down from
+
+            **kwargs: arbitrary keyword arguments to pass to os.walk
 
         Yields:
             tuple: os.walk tuple mimic. Namely, first item is a unicode of
@@ -252,17 +258,21 @@ class RsyncExclude(object):
                    is root.
         """
 
-        for root, dir_names, file_names in os.walk(path, topdown=True):
+        # TODO: Figure out why multiple exclusions doesn't work
+        for root, dir_names, file_names in os.walk(path, topdown=True,
+                                                   **kwargs):
 
             # Remove excluded directories
-            for dir_ in dir_names:
-                if self.exclude(dir_):
-                    dir_names.remove(dir_)
+            for _dir in dir_names:
+                m_dir = os.path.join(root, _dir) + os.path.sep
+                if self.exclude(m_dir) is True:
+                    dir_names.remove(_dir)
 
             # Remove excluded files
-            for file_ in file_names:
-                if self.exclude(file_):
-                    file_names.remove(file_)
+            for _file in file_names:
+                m_file = os.path.join(root, _file)
+                if self.exclude(m_file) is True:
+                    file_names.remove(_file)
 
             yield root, dir_names, file_names
 
