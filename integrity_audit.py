@@ -42,8 +42,8 @@ __credits__ = 'Christopher Thornton'
 __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
-__status__ = 'Alpha'
-__version__ = '0.2.0b1'
+__status__ = 'Beta'
+__version__ = '0.2.0b2'
 
 
 class Directory(object):
@@ -826,6 +826,21 @@ def main(args):
         logger.info('Computing checksums with Python hashing function: {0}'
                     .format(args.algorithm))
 
+    # Generate regexes of files/folder to include or exclude
+    if args.exclude is not None:
+        path_filter = RsyncRegexes('exclude', args.exclude)
+        logger.info('Excluding files and folders matching --exclude patterns')
+        for exclude in args.exclude:
+            logger.debug('Exclude Pattern: {0}'.format(exclude))
+    elif args.include is not None:
+        path_filter = RsyncRegexes('include', args.include)
+        logger.info('Including only files and folders matching --include '
+                    'patterns')
+        for include in args.include:
+            logger.debug('Include Pattern: {0}'.format(include))
+    else:
+        path_filter = RsyncRegexes('exclude', [])
+
     # Create multiprocess manager to handle classes
     BaseManager.register('Directory', Directory)
     BaseManager.register('File', File)
@@ -867,7 +882,7 @@ def main(args):
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
-    for root, dir_names, file_names in os.walk(abs_dir):
+    for root, dir_names, file_names in path_filter.walk(abs_dir):
 
         norm_root = os.path.abspath(os.path.normpath(root))
 
@@ -1070,6 +1085,18 @@ if __name__ == '__main__':
                         action='store_true',
                         help='check files in hidden directories and hidden '
                              'files')
+    patterns = parser.add_mutually_exclusive_group()
+    patterns.add_argument('-e', '--exclude',
+                          default=None,
+                          nargs='+',
+                          help='rsync patterns of files and folder to exclude '
+                               'from audit')
+    patterns.add_argument('-i', '--include',
+                          default=None,
+                          nargs='+',
+                          help='rsync patterns of files and folder to include '
+                               'from audit, anything not matching an include '
+                               'pattern is excluded')
     parser.add_argument('-l', '--log',
                         type=str,
                         default='syslog',
