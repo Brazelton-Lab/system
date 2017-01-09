@@ -23,7 +23,6 @@ Copyright:
 
 from __future__ import division
 from __future__ import print_function
-from __future__ import unicode_literals
 
 import argparse
 from glob import iglob
@@ -43,7 +42,7 @@ __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
 __status__ = 'Beta'
-__version__ = '0.2.0b2'
+__version__ = '0.2.0rc1'
 
 
 class Directory(object):
@@ -151,10 +150,10 @@ class RsyncRegexes(object):
     access to the familiarity of rsync patterns in Python programs.
 
     Attributes:
-        mode (unicode): ['include', 'exclude'] determines if a path
-                        matching a pattern should be included or excluded
+        mode (str): ['include', 'exclude'] determines if a path
+                    matching a pattern should be included or excluded
 
-        patterns (list): list of unicodes of rsync-style patterns to match
+        patterns (list): list of str of rsync-style patterns to match
                          paths against
     """
 
@@ -178,7 +177,7 @@ class RsyncRegexes(object):
         """Generate regexes to match rsync patterns
 
         Args:
-            patterns (list): list of unicodes containing rsync patterns to
+            patterns (list): list of str containing rsync patterns to
                              convert to Python regexes
 
         Returns:
@@ -257,7 +256,7 @@ class RsyncRegexes(object):
         This function is not strictly necessary, but is highly convenient.
 
         Args:
-             patterns (list): list of unicodes rsync patterns to convert to
+             patterns (list): list of str rsync patterns to convert to
                               Python regexes and add to instance's list of
                               regexes
 
@@ -271,7 +270,7 @@ class RsyncRegexes(object):
         """
 
         # Change single entry to list format for ease of use
-        if type(patterns) is unicode or type(patterns) is str:
+        if type(patterns) is str:
             patterns = [patterns]
 
         self.regexes += self.generate_rsync_regexes(patterns)
@@ -280,10 +279,10 @@ class RsyncRegexes(object):
         """Test if path is excluded as per instance regexes
 
         Args:
-            path (unicode): path to match against self.regexes
+            path (str): path to match against self.regexes
 
-            base (unicode): if provided, removes base from beginning of path
-                            so regexes can't match base
+            base (str): if provided, removes base from beginning of path
+                        so regexes can't match base
 
         Returns:
             bool: True if path is to be excluded, else False
@@ -337,10 +336,10 @@ class RsyncRegexes(object):
         """Test if path is included as per instance regexes
 
         Args:
-            path (unicode): path to match against self.regexes
+            path (str): path to match against self.regexes
 
-            base (unicode): if provided, removes base from beginning of path
-                            so regexes can't match base
+            base (str): if provided, removes base from beginning of path
+                        so regexes can't match base
 
         Returns:
             bool: True if path is to be included, else False
@@ -366,12 +365,12 @@ class RsyncRegexes(object):
         """Mimic os.walk but excludes dirs and files as per instance regexes
 
         Args:
-            path (unicode): top directory to walk down from
+            path (str): top directory to walk down from
 
             **kwargs: arbitrary keyword arguments to pass to os.walk
 
         Yields:
-            tuple: os.walk tuple mimic. Namely, first item is a unicode of
+            tuple: os.walk tuple mimic. Namely, first item is a str of
                    root directory for current iteration, second item is a list
                    of directories in root, and third item is a list of files
                    is root. Only directory and file names not to be excluded
