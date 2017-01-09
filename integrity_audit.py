@@ -41,8 +41,8 @@ __credits__ = 'Christopher Thornton'
 __email__ = 'theonehyer@gmail.com'
 __license__ = 'GPLv3'
 __maintainer__ = 'Alex Hyer'
-__status__ = 'Beta'
-__version__ = '0.2.0rc1'
+__status__ = 'Production'
+__version__ = '0.3.0'
 
 
 class Directory(object):
@@ -361,11 +361,14 @@ class RsyncRegexes(object):
 
         return not self.exclude(path, base=base)
 
-    def walk(self, path, **kwargs):
+    def walk(self, path, hidden=False, **kwargs):
         """Mimic os.walk but excludes dirs and files as per instance regexes
 
         Args:
             path (str): top directory to walk down from
+
+            hidden (bool): skip hidden files and directories if False, include
+                           them if True
 
             **kwargs: arbitrary keyword arguments to pass to os.walk
 
@@ -397,6 +400,8 @@ class RsyncRegexes(object):
                 m_dir = os.path.join(root, _dir) + os.path.sep
                 if self.exclude(m_dir, base=path) is True:
                     remove_dir.append(_dir)
+                elif hidden is False and _dir[0] == '.':
+                    remove_dir.append(_dir)
             dir_names[:] = list(set(dir_names) - set(remove_dir))
 
             # Remove excluded files
@@ -404,6 +409,8 @@ class RsyncRegexes(object):
             for _file in file_names:
                 m_file = os.path.join(root, _file)
                 if self.exclude(m_file, base=path) is True:
+                    remove_files.append(_file)
+                elif hidden is False and _file[0] == '.':
                     remove_files.append(_file)
             file_names[:] = list(set(file_names) - set(remove_files))
 
@@ -479,7 +486,7 @@ class ThreadCheck(argparse.Action):
         setattr(namespace, self.dest, threads)
 
 
-def analyze_checksums(queue, hasher, logger):
+def analyze_checksums(queue, hasher, logger, read_only):
     """Probes directory for checksum file and compares computed file checksums
 
     Args:
@@ -489,6 +496,8 @@ def analyze_checksums(queue, hasher, logger):
          hasher (str): hashing algorithm used to analyze files
 
          logger (Logger): logging class to log messages
+
+         read_only (bool): if True, does not write checksum file
     """
 
     # Loop until queue contains kill message
@@ -585,10 +594,16 @@ def analyze_checksums(queue, hasher, logger):
                     checksums[file_name] = f.checksum()
                     logger.info('File checksum formatted for checksum '
                                 'file: {0}'.format(f.path()))
+
         else:
 
             logger.debug('Could not find checksum file in directory: {0}'
                          .format(d.path()))
+
+            if read_only is True:
+                logger.warning('Read-Only Mode active')
+                logger.warning('Skipping directory: {0}'.format(d.path()))
+                continue
 
             logger.info('Formatting file checksums for directory: {0}'
                         .format(d.path()))
@@ -612,15 +627,20 @@ def analyze_checksums(queue, hasher, logger):
                 logger.info('File checksum formatted: {0}'.format(f.path()))
 
         # Write checksum file
-        try:
-            with open(checksum_file_path, 'w') as checksum_handle:
-                for key, value in checksums.items():
-                    output = value + '  ' + key + os.linesep
-                    checksum_handle.write(output)
-        except IOError:
-            logger.error('Cannot write checksum file: {0}'
-                         .format(checksum_file_path))
-            pass
+        if read_only is False:
+            try:
+                with open(checksum_file_path, 'w') as checksum_handle:
+                    for key, value in checksums.items():
+                        output = value + '  ' + key + os.linesep
+                        checksum_handle.write(output)
+            except IOError:
+                logger.error('Cannot write checksum file: {0}'
+                             .format(checksum_file_path))
+                pass
+        else:
+            logger.debug('Read-Only Mode active')
+            logger.debug('Skipping writing checksum file: {0}'
+                         .format(d.path()))
 
 
 def checksum_calculator(queue, hasher, hash_from, logger):
@@ -640,7 +660,6 @@ def checksum_calculator(queue, hasher, hash_from, logger):
 
     # Loop until queue contains kill message
     while True:
-
 
         f = queue.get()
 
@@ -796,6 +815,7 @@ def main(args):
     logger.info('Top Directory: {0}'.format(os.path.abspath(args.directory)))
     logger.info('Log Location: {0}'.format(os.path.abspath(args.log)))
     logger.info('Threads: {0}'.format(str(args.threads)))
+    logger.info('Read-Only Mode: {0}'.format(str(args.read_only)))
 
     # Relate hashing algorithm arg to function for downstream use
     hash_functions = {
@@ -815,6 +835,7 @@ def main(args):
     # The presence or absence of a sum command influences program flow.
     sum_cmd = which(args.algorithm + 'sum')
     use_sum = True if sum_cmd is not None else False  # Mostly for readability
+    algo = args.algorithm + 'sums'
 
     if use_sum is True:
         logger.info('Found GNU program: {0}'.format(sum_cmd))
@@ -881,7 +902,8 @@ def main(args):
 
     # Obtain directory structure and data, populate queue for above daemons
     dirs = []
-    for root, dir_names, file_names in path_filter.walk(abs_dir):
+    for root, dir_names, file_names in path_filter.walk(abs_dir,
+                                                        hidden=args.hidden):
 
         norm_root = os.path.abspath(os.path.normpath(root))
 
@@ -915,6 +937,13 @@ def main(args):
         else:
             logger.debug('Can read from directory: {0}'.format(norm_root))
 
+        # Skip directories w/o checksum files in read-only mode
+        if args.read_only is True and algo not in file_names:
+            logger.warning('Directory does not contain file {0}: {1}'
+                           .format(algo, norm_root))
+            logger.warning('Skipping directory: {0}'.format(norm_root))
+            continue
+
         # Warn about un-writeable directories
         try:
             assert os.access(norm_root, os.W_OK) is True
@@ -923,15 +952,6 @@ def main(args):
             logger.warning('Will attempt to analyze checksums of file anyway')
         else:
             logger.debug('Can write to directory: {0}'.format(norm_root))
-
-        # Skip hidden directories unless specified
-        if args.hidden is False:
-            parts = norm_root.split(os.path.sep)[1:]
-            for part in parts:
-                if part[0] == '.':
-                    logger.debug('Directory is hidden: {0}'.format(norm_root))
-                    logger.debug('Skipping directory: {0}'.format(norm_root))
-                    continue
 
         # Analyze each file in the given directory
         file_classes = []
@@ -1024,7 +1044,8 @@ def main(args):
     processes2 = []
     for i in range(args.threads):
         processes2.append(Process(target=analyze_checksums,
-                                  args=(queue2, args.algorithm, logger,)))
+                                  args=(queue2, args.algorithm, logger,
+                                        args.read_only)))
         processes2[i].daemonize = True
         processes2[i].start()
 
@@ -1108,6 +1129,10 @@ if __name__ == '__main__':
                         default=-1,
                         help='max number of subdirectory levels to check, '
                              'implies "-r"')
+    parser.add_argument('-n', '--read_only',
+                        action='store_true',
+                        help='skips writing checksum files and doesn\'t '
+                             'analyze directories w/o checksum files')
     parser.add_argument('-o', '--log_level',
                         type=str,
                         default='info',
