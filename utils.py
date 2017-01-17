@@ -1,12 +1,11 @@
 #! /usr/bin/env python
-
 """
-Parses a JSON-formatted file containing information on the available 
-programs on the server and displays it as human-readable text. The user can 
-specify a program of interest as a command line argument and receive more 
-detail about the program in return, including previous version information, 
-dependencies, and a list of possible commands supplied by the program. Also
-includes functionality for editing the database.
+Parses a JSON-formatted file containing information on the programs and
+reference databases that are available and displays it as human-readable text.
+Users can specify a program (or database) of interest as an argument and
+receive additional detail about it, including previous versions, dependencies,
+and a list of possible commands supplied by the program. Utils also includes
+functionality for editing the database.
 """
 
 from __future__ import print_function
@@ -21,10 +20,8 @@ import argparse
 import re
 
 def argument_parser():
-    parser = argparse.ArgumentParser(description="Displays information about "
-        "the available bioinformatics programs on the server. If no arguments "
-        "given with the list subcommand, will list all. Various flags can be "
-        "used to modify the information output with the display subcommand")
+    parser = argparse.ArgumentParser(description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('program',
         metavar='PROGRAM', 
@@ -39,15 +36,19 @@ def argument_parser():
     # list-specific arguments
     list_parser = subparsers.add_parser('list',
         parents=[db_parser],
-        help="list all available programs")
+        help="display available programs or databases. The default is to list "
+            "programs only.")
     category_mode = list_parser.add_argument_group('category viewers')
     exclusive_list = category_mode.add_mutually_exclusive_group()
-    exclusive_list.add_argument('-l', '--list_categories',
-        action='store_true',
-        help='list all program categories')
     exclusive_list.add_argument('-c', '--category',
         type=parse_multiple_args,
-        help='list all prgrams in given category')
+        help='display all entries in the specified category')
+    exclusive_list.add_argument('--categories',
+        action='store_true',
+        help='display existing categories')
+    exclusive_list.add_argument('--ref_dbs',
+        action='store_true',
+        help='display available reference databases')
     list_parser.set_defaults(func=prog_list)
     # edit-specific arguments
     edit_parser = subparsers.add_parser('edit',
@@ -99,12 +100,12 @@ def argument_parser():
     # display-specific arguments
     display_parser = subparsers.add_parser('show',
         parents=[parent_parser, db_parser],
-        help="obtain detailed information about a program")
+        help="obtain detailed information about a program or database")
     flag_group = display_parser.add_argument_group('flags')
     flag_group.add_argument('-p', '--prev',
         action='store_const',
         const='previous versions',
-        help="list former versions of the program used on the server")
+        help="list former versions of the search item")
     flag_group.add_argument('-c', '--commands',
         action='store_const',
         const='commands',
@@ -112,7 +113,7 @@ def argument_parser():
     flag_group.add_argument('-t', '--categories',
         action='store_const',
         const='categories',
-        help="list of categories the program fits in")
+        help="list of categories the search item fits in")
     flag_group.add_argument('-i', '--installation',
         action='store_const',
         const='installation method',
@@ -191,7 +192,7 @@ def relevant_values(all_args, name, data):
     return given_args
 
 def prog_list(args, data):
-    if args.list_categories:
+    if args.categories:
         categories = []
         for program in sorted(data):
             try:
@@ -207,7 +208,7 @@ def prog_list(args, data):
             print()
             print( '-' * len(category))
             print('{0}'.format(category))
-            print('-' * len(category), '\n')
+            print('-' * len(category))
             exists = False
             for program in sorted(data):
                 try:
@@ -219,15 +220,25 @@ def prog_list(args, data):
                     pass
             if not exists:
                 print('No such category: {0}'.format(category))
-                print('Type use --list_categories to view possible categories')
+                print('Type use --categories to view possible categories')
     else:            
-        for program in sorted(data):
-            version = data[program]["version"]
-            if version:
-                col_one = "{}(v.{}): ".format(program, version)
+        for entry in sorted(data):
+            try:
+                category = data[entry]["categories"]
+            except KeyError:
+                category = ''
+            if args.ref_dbs:
+                if "db" not in category:
+                    continue
             else:
-                col_one = program
-            col_two = data[program]["description"]
+                if "db" in category:
+                    continue
+            version = data[entry]["version"]
+            if version:
+                col_one = "{}({}): ".format(entry, version)
+            else:
+                col_one = entry
+            col_two = data[entry]["description"]
             display_info(col_one, col_two)
 
 def prog_display(args, data):
@@ -236,7 +247,7 @@ def prog_display(args, data):
     if program:
         version = data[program]["version"]
         if version:
-            col_one = "{}(v.{}): ".format(program, version)
+            col_one = "{}({}): ".format(program, version)
         else:
             col_one = program
         col_two = data[program]["description"]
