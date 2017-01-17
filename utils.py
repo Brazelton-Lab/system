@@ -25,35 +25,36 @@ def argument_parser():
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('program',
         metavar='PROGRAM', 
-        help="program name")
+        help="entry name")
     db_parser = argparse.ArgumentParser(add_help=False)
     db_parser.add_argument('-b', '--database', metavar="DB",
         default="/usr/local/etc/utils.json",
         type=io_check,
-        help="provide a custom JSON-formatted database file")
+        help="use a custom JSON-formatted database file [default: "
+            "/usr/local/etc/utils.json]")
     subparsers = parser.add_subparsers(title="subcommands", 
         help="exactly one of these commands is required")
     # list-specific arguments
     list_parser = subparsers.add_parser('list',
         parents=[db_parser],
-        help="display available programs or databases. The default is to list "
+        help="display available programs or databases. Default is to list "
             "programs only.")
     category_mode = list_parser.add_argument_group('category viewers')
     exclusive_list = category_mode.add_mutually_exclusive_group()
     exclusive_list.add_argument('-c', '--category',
         type=parse_multiple_args,
-        help='display all entries in the specified category')
+        help='display all entries in the specified categories')
     exclusive_list.add_argument('--categories',
         action='store_true',
         help='display existing categories')
     exclusive_list.add_argument('--ref_dbs',
         action='store_true',
         help='display available reference databases')
-    list_parser.set_defaults(func=prog_list)
+    list_parser.set_defaults(func=sub_list)
     # edit-specific arguments
     edit_parser = subparsers.add_parser('edit',
         parents=[parent_parser, db_parser],
-        help="edit, append, or remove an entry to the database")
+        help="edit, append, or remove a database entry")
     edit_parser.add_argument('-v','--version',
         metavar='VERSION',
         help="current version of the program (can be \"null\" if no version "
@@ -96,7 +97,7 @@ def argument_parser():
     exclusive_group.add_argument('-r', '--remove',
         action='store_true',
         help="remove existing entry from database")
-    edit_parser.set_defaults(func=prog_edit)
+    edit_parser.set_defaults(func=sub_edit)
     # display-specific arguments
     display_parser = subparsers.add_parser('show',
         parents=[parent_parser, db_parser],
@@ -122,7 +123,7 @@ def argument_parser():
         action='store_const',
         const='dependencies',
         help="list program dependencies")
-    display_parser.set_defaults(func=prog_display)
+    display_parser.set_defaults(func=sub_display)
     return parser
 
 def parse_multiple_args(arguments):
@@ -191,7 +192,7 @@ def relevant_values(all_args, name, data):
             given_args.append(arg)
     return given_args
 
-def prog_list(args, data):
+def sub_list(args, data):
     if args.categories:
         categories = []
         for program in sorted(data):
@@ -241,7 +242,7 @@ def prog_list(args, data):
             col_two = data[entry]["description"]
             display_info(col_one, col_two)
 
-def prog_display(args, data):
+def sub_display(args, data):
     all_args = vars(args)
     program = autocomplete(args.program, data)
     if program:
@@ -275,7 +276,7 @@ def prog_display(args, data):
         print_out(output)
         sys.exit(1)
 
-def prog_edit(args, data):
+def sub_edit(args, data):
     all_args = vars(args)
     if not args.append:
         match = autocomplete(args.program, data)
