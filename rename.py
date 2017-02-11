@@ -101,7 +101,7 @@ def main():
                             file=sys.stderr)
                     i += 1
             else:
-                new_name = format_io(old_name, new_name, args.ext)
+                new_name = format_io(old_name, new_id, args.ext)
                 new_path = new_dir + "/" + new_name
                 old_path = old_dir + "/" + old_name
 
