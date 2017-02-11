@@ -28,7 +28,7 @@ def format_io(old_name, new_name, ext=''):
 
     if ext:
         file_end = ext
-    else
+    else:
         old_name = old_name.split('.')
         filetype = old_name[-1]
         if filetype in ["gz", "bz2", "zip"]:
@@ -56,7 +56,7 @@ def main():
     parser.add_argument('-s', '--sep',
         default=',',
         help="field separator character [default: ,]")
-    args = parser.parse_Args()
+    args = parser.parse_args()
 
     with open(infile, 'rU') as in_h:
         for line in in_h:
@@ -65,7 +65,7 @@ def main():
             except ValueError:
                 print(textwrap.fill("Error: failed to properly parse {}. The "
                     "conversion table should contain four columns. See usage "
-                    "for details".format(infile), 79, file=sys.stderr)
+                    "for details".format(infile), 79), file=sys.stderr)
                 sys.exit(1)
             if oldname[-1] == '*':
                 forwards = sorted(glob.glob('{}/{}*R1_*'.format(old_dir, oldname[:-1])))
@@ -73,7 +73,7 @@ def main():
                 if len(forwards) != len(reverse):
                     print(textwrap.fill("Error: missing pair. The use of '*' "
                         "should only be used for paired-end reads in separate "
-                        "files", 79))
+                        "files", 79), file=sys.stderr)
                     sys.exit(1)
                 if len(forwards) > 1:
                     add_int = True
