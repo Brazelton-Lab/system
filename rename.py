@@ -10,7 +10,6 @@ forward from reverse reads (R1 and R2), then an asterics (*) can be used after
 the file name (e.g samplename1_R*) instead of specifying each paired file
 individually. The linked pairs will be differentiated using "forward" and
 "reverse" in place of "R1" and "R2".
-.
 """
 
 from __future__ import print_function
