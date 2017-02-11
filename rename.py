@@ -15,8 +15,9 @@ individually. The linked pairs will be differentiated using "forward" and
 from __future__ import print_function
 
 import argparse
-import sys
 import glob
+import locale
+import sys
 import textwrap
 from itertools import izip
 from subprocess import Popen, PIPE
@@ -30,7 +31,7 @@ def format_io(old_name, new_name, ext=''):
         file_end = ext
     else:
         old_name = old_name.split('.')
-        filetype = old_name[-1]
+        filetype = old_name[-1].strip()
         if filetype in ["gz", "bz2", "zip"]:
             compress = ".{}".format(filetype)
             filetype = old_name[-2]
@@ -38,9 +39,10 @@ def format_io(old_name, new_name, ext=''):
         try:
             extension = extensions[filetype]
         except KeyError:
-             print(textwrap.fill("Error: unknown file type. Please make sure "
-                "the filenames end in one of the supported file extensions "
-                "(fa, fna, fasta, fq, fnq, fastq)", 79), file=sys.stderr)
+             print(textwrap.fill("Error: unknown file type {}. Please make "
+                "sure the filenames end in one of the supported extensions "
+                "(fa, fna, fasta, fq, fnq, fastq)".format(filetype), 79), 
+                file=sys.stderr)
              sys.exit(1)        
         file_end = extensions[filetype] + compress
 
@@ -67,10 +69,15 @@ def main():
                     "conversion table should contain four columns. See usage "
                     "for details".format(infile), 79), file=sys.stderr)
                 sys.exit(1)
-            if old_name[-1] == '*':
+            new_dir = new_dir.strip()
+            new_id = new_id.strip()
+            old_dir = old_dir.strip()
+            old_name = old_name.strip()
+
+            if old_name.strip()[-1] == '*':
                 forwards = sorted(glob.glob('{}/{}*R1_*'.format(old_dir, old_name[:-1])))
                 reverses = sorted(glob.glob('{}/{}*R2_*'.format(old_dir, old_name[:-1])))
-                if len(forwards) != len(reverse):
+                if len(forwards) != len(reverses):
                     print(textwrap.fill("Error: missing pair. The use of '*' "
                         "should only be used for paired-end reads in separate "
                         "files", 79), file=sys.stderr)
@@ -83,8 +90,8 @@ def main():
                 i = 1
                 for forward, reverse in izip(forwards, reverses):
                     if add_int:
-                        new_f = format_io(forward, "{}.forward.{!s}".format(new_id, i.zfill(3)), args.ext)
-                        new_r = format_io(reverse, "{}.reverse.{!s}".format(new_id, i.zfill(3)), args.ext)
+                        new_f = format_io(forward, "{}.forward.{!s}".format(new_id, str(i).zfill(3)), args.ext)
+                        new_r = format_io(reverse, "{}.reverse.{!s}".format(new_id, str(i).zfill(3)), args.ext)
                     else:
                         new_f = format_io(forward, "{}.forward".format(new_id), args.ext)
                         new_r = format_io(reverse, "{}.reverse".format(new_id), args.ext)
