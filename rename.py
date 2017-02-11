@@ -17,6 +17,7 @@ from __future__ import print_function
 import argparse
 import glob
 import locale
+import re
 import sys
 import textwrap
 from itertools import izip
@@ -75,47 +76,50 @@ def main():
             old_name = old_name.strip()
 
             if old_name.strip()[-1] == '*':
-                forwards = sorted(glob.glob('{}/{}*R1_*'.format(old_dir, old_name[:-1])))
-                reverses = sorted(glob.glob('{}/{}*R2_*'.format(old_dir, old_name[:-1])))
+                strand_name = {'R1': 'forward', 'R2': 'reverse'}
+
+                forwards = glob.glob('{}/{}*R1_*'.format(old_dir, old_name[:-1]))
+                reverses = glob.glob('{}/{}*R2_*'.format(old_dir, old_name[:-1]))
                 if len(forwards) != len(reverses):
-                    print(textwrap.fill("Error: missing pair. The use of '*' "
-                        "should only be used for paired-end reads in separate "
-                        "files", 79), file=sys.stderr)
-                    sys.exit(1)
+                    print(textwrap.fill("Warning: missing pair in {}. The use "
+                        "of '*' should only be used for paired-end reads in "
+                        "separate files".format(old_name), 79), file=sys.stderr)
+                    continue
                 if len(forwards) > 1:
-                    add_int = True
+                    add_det = True
                 else:
-                    add_int = False
+                    add_det = False
 
-                i = 1
-                for forward, reverse in izip(forwards, reverses):
-                    if add_int:
-                        new_f = format_io(forward, "{}.forward.{!s}".format(new_id, str(i).zfill(3)), args.ext)
-                        new_r = format_io(reverse, "{}.reverse.{!s}".format(new_id, str(i).zfill(3)), args.ext)
-                    else:
-                        new_f = format_io(forward, "{}.forward".format(new_id), args.ext)
-                        new_r = format_io(reverse, "{}.reverse".format(new_id), args.ext)
+                for strand in (forwards, reverses):
+                    for filename in strand:
+                        if add_det:
+                            seq_detail = re.search(r'L\d{3}_R[12]_\d{3}', 
+                                filename).group()
+                            lane, pair, number = seq_detail.split('_')
+                            new_name = format_io(filename, "{}.{}.{}_{}"
+                                .format(new_id, strand_name[pair], lane, 
+                                number), args.ext)
+                        else:
+                            new_name = format_io(filename, "{}.{}"
+                                .format(new_id, strand_name[pair]), args.ext)
 
-                    ln_out, ln_err = (Popen(['ln', "-s", forward, "{}/{}".format(new_dir, new_f)], 
-                        stdout=PIPE, stderr=PIPE).communicate())
-                    if ln_err:
-                        print(ln_err.decode(locale.getdefaultlocale()[1]), 
-                            file=sys.stderr)
-                    ln_out, ln_err = (Popen(['ln', "-s", reverse, "{}/{}".format(new_dir, new_r)], 
-                        stdout=PIPE, stderr=PIPE).communicate())
-                    if ln_err:
-                        print(ln_err.decode(locale.getdefaultlocale()[1]), 
-                            file=sys.stderr)
-                    i += 1
+                        ln_out, ln_err = (Popen(['ln', "-s", filename, "{}/{}"
+                            .format(new_dir, new_name)], stdout=PIPE, 
+                            stderr=PIPE).communicate())
+                        if ln_err:
+                            print(ln_err.decode(locale.getdefaultlocale()[1]), 
+                                file=sys.stderr)
+
             else:
                 new_name = format_io(old_name, new_id, args.ext)
                 new_path = new_dir + "/" + new_name
                 old_path = old_dir + "/" + old_name
 
-                ln_out, ln_err = (Popen(['ln', "-s", old_path, new_path], stdout=PIPE, stderr=PIPE)
-                .communicate())
+                ln_out, ln_err = (Popen(['ln', "-s", old_path, new_path], 
+                    stdout=PIPE, stderr=PIPE).communicate())
                 if ln_err:
-                    print(ln_err.decode(locale.getdefaultlocale()[1]), file=sys.stderr)
+                    print(ln_err.decode(locale.getdefaultlocale()[1]), 
+                        file=sys.stderr)
 
 if __name__ == '__main__':
     main()
