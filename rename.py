@@ -67,9 +67,9 @@ def main():
                     "conversion table should contain four columns. See usage "
                     "for details".format(infile), 79), file=sys.stderr)
                 sys.exit(1)
-            if oldname[-1] == '*':
-                forwards = sorted(glob.glob('{}/{}*R1_*'.format(old_dir, oldname[:-1])))
-                reverses = sorted(glob.glob('{}/{}*R2_*'.format(old_dir, oldname[:-1])))
+            if old_name[-1] == '*':
+                forwards = sorted(glob.glob('{}/{}*R1_*'.format(old_dir, old_name[:-1])))
+                reverses = sorted(glob.glob('{}/{}*R2_*'.format(old_dir, old_name[:-1])))
                 if len(forwards) != len(reverse):
                     print(textwrap.fill("Error: missing pair. The use of '*' "
                         "should only be used for paired-end reads in separate "
