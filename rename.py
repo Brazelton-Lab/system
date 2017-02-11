@@ -16,6 +16,7 @@ from __future__ import print_function
 
 import argparse
 import sys
+import glob
 import textwrap
 from itertools import izip
 from subprocess import Popen, PIPE
@@ -57,7 +58,7 @@ def main():
         help="field separator character [default: ,]")
     args = parser.parse_args()
 
-    with open(infile, 'rU') as in_h:
+    with open(args.infile, 'rU') as in_h:
         for line in in_h:
             try:
                 new_dir, new_id, old_dir, old_name = line.split(args.sep)
