@@ -11,23 +11,35 @@ positional arguments:
 optional arguments:
   -h              display this help message and exit
   -e              text editor to edit sbatch_file with [default: vim]
+  -s              set a new default editor
 EOF
+}
+
+set_editor(){
+echo ${SET} > ${HOME}/.new_sbatch
 }
 
 # parse command line arguments
 OPTIND=1;
-EDITOR="/usr/bin/vim"
+EDITOR="/usr/bin/nano"
+if [ -f ${HOME}/.new_sbatch ]; then
+    EDITOR=$(cat ${HOME}/.new_sbatch)
+fi
 if [[ $# -eq 0 ]] ; then
     show_help;
     exit 0;
 fi
-while getopts "h:?:e:" opt; do
+while getopts "h:?:e:s:" opt; do
     case "$opt" in
         h)
             show_help;
             exit 0
             ;;
         e)  EDITOR=$(whereis -b ${OPTARG} | cut -f 2 -d ' ')
+            ;;
+        s)  SET=$(whereis -b ${OPTARG} | cut -f 2 -d ' ');
+            set_editor;
+            exit 0
             ;;
         ?)
             show_help;
