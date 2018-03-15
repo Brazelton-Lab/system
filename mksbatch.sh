@@ -16,7 +16,7 @@ EOF
 }
 
 set_editor(){
-echo ${SET} > ${HOME}/.new_sbatch
+echo ${SET} > ${HOME}/.mksbatch
 }
 
 # parse command line arguments
