@@ -23,7 +23,7 @@ echo ${SET} > ${HOME}/.new_sbatch
 OPTIND=1;
 EDITOR="/usr/bin/nano"
 if [ -f ${HOME}/.mksbatch ]; then
-    EDITOR=$(cat ${HOME}/.new_sbatch)
+    EDITOR=$(cat ${HOME}/.mksbatch)
 fi
 if [[ $# -eq 0 ]] ; then
     show_help;
