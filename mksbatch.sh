@@ -22,7 +22,7 @@ echo ${SET} > ${HOME}/.new_sbatch
 # parse command line arguments
 OPTIND=1;
 EDITOR="/usr/bin/nano"
-if [ -f ${HOME}/.new_sbatch ]; then
+if [ -f ${HOME}/.mksbatch ]; then
     EDITOR=$(cat ${HOME}/.new_sbatch)
 fi
 if [[ $# -eq 0 ]] ; then
