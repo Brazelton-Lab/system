@@ -16,7 +16,7 @@ write_log() {
 show_help() {
 cat << EOF
 Usage: ${0##*/} [-h] [-d] [-r HOST] [-l LOG] [-p PORT] [-e FILES] [-v LV] \
-    [-g VG] [-s SIZE] source destination
+    [-g VG] [-s SIZE] [-b BWLIM] source destination
 Brazelton Lab backup script
 
 positional arguments:
@@ -33,6 +33,8 @@ optional arguments:
   -v LV           lvm logical volume
   -g VG           lvm volume group
   -s SIZE         snapshot size [default: 200GiB]
+  -b SIZE         regulate transfer speed by limiting socket I/O bandwidth 
+                  [default: 20M]. Accepted units are K, KB, M, MB, G, and GB.
 EOF
 }
 
@@ -57,10 +59,11 @@ LOGVOL='';
 VOLGROUP='';
 REQUIRE_LINK=true;
 SNAPSIZE='200GiB';
+BWLIM='20M'
 
 # parse command line arguments
 OPTIND=1;
-while getopts "h?d:r:p:l:e:v:g:s:" opt; do
+while getopts "h?d:r:p:l:e:v:g:s:b:" opt; do
     case "$opt" in
         h)
             show_help;
@@ -81,6 +84,8 @@ while getopts "h?d:r:p:l:e:v:g:s:" opt; do
         g)  VOLGROUP=$OPTARG
             ;;
         s)  SNAPSIZE=$OPTARG
+            ;;
+        b)  BWLIM=$OPTARG
             ;;
         ?)
             show_help;
