@@ -193,7 +193,7 @@ else
 fi
 
 # set rsync arguments
-RSYNCOPTS=(-azAX --no-o --no-g --delete ${link_dest});
+RSYNCOPTS=(-azAX --no-o --no-g --bwlimit=100000 --delete ${link_dest});
 if [ ! -z $EXCLUDES ]; then
     RSYNCOPTS+=(--exclude-from=${EXCLUDES});
 fi
