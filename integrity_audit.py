@@ -963,7 +963,7 @@ def main(args):
 
             # Skip non-existent files
             try:
-                assert os.path.isfile(file_path) is True
+                assert os.path.exists(file_path) is True
             except AssertionError:
                 logger.warning('File no longer exists: {0}'.format(file_path))
                 logger.warning('Skipping file: {0}'.format(file_path))
@@ -980,6 +980,17 @@ def main(args):
                 continue
             else:
                 logger.debug('Can read file: {0}'.format(file_path))
+
+            # Skip special files
+            try:
+                assert (os.path.isfile(file_path) \
+                    and not os.path.islink(file_path)) is True
+            except AssertionError:
+                logger.debug('{0} is a special file: skipping'.format(file_path))
+                continue
+            else:
+                logger.debug('File exists and is a regular file: {0}'
+                             .format(file_path))
 
             # Skip hidden files unless specified
             if args.hidden is False and file_name[0] == '.':
